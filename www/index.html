@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinanceOne</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="enhancements.css">
+  <link rel="stylesheet" href="overrides.css">
+  <link rel="stylesheet" href="responsive-v2.css">
+  <link rel="stylesheet" href="inline-v3.css">
+  <link rel="stylesheet" href="overview-v4.css">
+  <link rel="stylesheet" href="themes-v5.css">
+  <link rel="stylesheet" href="mobile-app.css?v=6">
+  <link rel="stylesheet" href="pc-v6.css?v=3">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand"><div class="logo">💰</div><span>FinanceOne</span></div>
+    <nav id="nav">
+      <button data-page="dashboard" class="active">⌂ 대시보드</button>
+      <button data-page="transactions">▤ 거래 내역</button>
+      <button data-page="analysis">▥ 분석 및 통계</button>
+      <button data-page="budget">♜ 예산 관리</button>
+      <button data-page="subscriptions">⟳ 정기 구독 관리</button>
+      <button data-page="food">🍴 식비 분석</button>
+      <button data-page="assets">⌂ 자산 관리</button>
+      <button data-page="stocks">▦ 주식 관리</button>
+      <button data-page="settings">⚙ 설정</button>
+      <button data-page="more" class="mobile-nav-more">☰ 전체</button>
+    </nav>
+    <div class="side-card" id="side"></div>
+    <div class="quick">
+      <h3>빠른 입력</h3>
+      <div>
+        <button data-quick="지출">− 지출</button>
+        <button data-quick="수입">＋ 수입</button>
+        <button data-quick="이체">⇄ 이체</button>
+      </div>
+    </div>
+  </aside>
+  <main id="app"></main>
+  <div id="modal"></div>
+  <div id="submodal"></div>
+  <div id="toast"></div>
+  <script src="app.js?v=10"></script>
+</body>
+</html>

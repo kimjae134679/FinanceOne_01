@@ -1,0 +1,9 @@
+{
+  "appId": "com.financeone.mobile",
+  "appName": "FinanceOne",
+  "webDir": "www",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#f4f7fb"
+  }
+}

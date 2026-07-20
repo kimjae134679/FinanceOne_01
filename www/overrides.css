@@ -1,0 +1,65 @@
+.metric{display:grid;grid-template-columns:46px minmax(0,1fr);grid-template-rows:auto auto auto;column-gap:12px;align-items:center}.metric .ico{float:none;width:46px;height:46px;margin:0;grid-row:1/4}.metric h4,.metric strong,.metric small{margin:0;grid-column:2}.metric strong{font-size:20px;white-space:nowrap}.chart-pair{gap:16px}.chart-pair .donut{width:160px;height:160px}.chart-pair .donut:after{inset:35px;font-size:14px}.chart-pair .legend p{grid-template-columns:minmax(68px,1fr) 45px 75px;gap:5px;font-size:12px}.chart-pair .legend p span:first-child{white-space:nowrap}.chart-pair .legend p span:last-child{text-align:right;white-space:nowrap}
+/* v1.7.3 interaction fixes */
+.category-tree .node-row{gap:8px}
+.category-tree .collapse-btn{flex:0 0 30px;width:30px;height:30px;padding:0;border:1px solid var(--line,#d9e2f2);border-radius:8px;background:var(--card,#fff);white-space:nowrap}
+.category-tree .node-actions button,.category-tree .new-area-btn{white-space:nowrap;word-break:keep-all;min-width:max-content}
+.stock-side-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 18px}
+.stock-side-tabs button{padding:12px;border:1px solid var(--line,#d9e2f2);border-radius:12px;background:var(--card,#fff);font-weight:800}
+.stock-side-tabs button.active{background:#2966ff;color:#fff;border-color:#2966ff}
+.stock-lookup-row{display:flex;align-items:center;gap:12px}
+.stock-lookup-row small{color:var(--muted,#6f7f98)}
+.category-editor-box{text-align:left}
+@media(max-width:760px){.stock-lookup-row{align-items:stretch;flex-direction:column}.category-tree .node-row{align-items:flex-start}.category-tree .node-actions{flex-wrap:wrap}}
+/* v1.7.5 usability fixes */
+body, #app, .modalbox, .table, .tx-line { user-select:text; -webkit-user-select:text; }
+button, select, input, textarea { user-select:auto; }
+.tx-category-chain > select:first-child { display:none !important; }
+.category-modal { width:min(980px,calc(100vw - 32px)) !important; max-width:980px !important; max-height:calc(100vh - 32px) !important; overflow:auto !important; }
+.category-tree,.area-node,.section-node,.item-node{max-width:100%;box-sizing:border-box}
+.node-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.node-actions{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.node-actions button{white-space:nowrap}
+.food-analysis-toggle{display:flex;align-items:flex-start;gap:10px;padding:14px;border:1px solid var(--line,#dbe3f0);border-radius:12px;margin-top:12px}.food-analysis-toggle small{display:block;margin-top:4px;color:#70809a}
+.stock-side-tabs .stock-buy.active{background:#ff4d55!important;border-color:#ff4d55!important;color:white!important}
+.rent-toggle.active{background:#eaf0ff;border-color:#2966ff;color:#2966ff}
+@media(max-width:700px){.category-modal{width:calc(100vw - 16px)!important;max-height:calc(100vh - 16px)!important}.node-actions{width:100%;margin-left:36px;justify-content:flex-start}}
+
+/* v1.7.6: 거래 복사와 계층형 예산 */
+.tx-inline-actions{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto}
+.tx-copy-btn,.tx-delete-btn{width:26px;height:26px;min-width:26px;padding:0;border:1px solid #cfdcf0;border-radius:8px;background:#fff;font-weight:900;line-height:1;cursor:pointer}
+.tx-copy-btn{color:#2966ff}
+.tx-copy-btn:hover{background:#edf3ff}
+.budget-section-row{cursor:pointer;background:#f6f9ff}
+.budget-section-row:hover{background:#edf3ff}
+.budget-section-row td:first-child{font-size:16px}
+.budget-section-row small{margin-left:8px;color:#8795aa;font-weight:500}
+.budget-fold{width:28px;height:28px;padding:0;border:1px solid #d7e2f2;border-radius:8px;background:#fff;color:#16335e}
+.budget-item-row td:first-child{padding-left:48px}
+.budget-indent{display:inline-flex;align-items:center;gap:8px}
+@media(max-width:720px){
+ .tx-meta-row{display:flex;align-items:center;gap:6px;min-width:0}
+ .tx-meta-text{min-width:0;white-space:normal;overflow:visible;text-overflow:clip}
+ .budget-hierarchy thead{display:none}
+ .budget-hierarchy,.budget-hierarchy tbody,.budget-hierarchy tr,.budget-hierarchy td{display:block;width:100%}
+ .budget-hierarchy tr{padding:14px;border-bottom:1px solid #e1e8f3}
+ .budget-hierarchy td{padding:4px 0;border:0;display:flex;justify-content:space-between;gap:12px}
+ .budget-hierarchy td:nth-child(2)::before{content:'예산'}
+ .budget-hierarchy td:nth-child(3)::before{content:'사용액'}
+ .budget-hierarchy td:nth-child(4)::before{content:'남은 금액'}
+ .budget-hierarchy td:nth-child(5)::before{content:'사용률'}
+ .budget-hierarchy td.actions{justify-content:flex-end}
+ .budget-item-row td:first-child{padding-left:18px;justify-content:flex-start}
+}
+
+/* v1.7.7: 식비 가독성, 카테고리 복사, 고정 닫기 */
+#app[data-page="food"] .field label{font-size:15px;font-weight:800;color:#29405f}
+#app[data-page="food"] .field input,#app[data-page="food"] .field select,#app[data-page="food"] .field textarea{font-size:16px;min-height:46px}
+#app[data-page="food"] .hint,#app[data-page="food"] small{font-size:13px;line-height:1.55}
+#app[data-page="food"] .btn,#app[data-page="food"] button{font-size:15px}
+.category-copy-btn{width:34px;min-width:34px;padding:0!important;font-weight:900;color:#2966ff;background:#eef4ff!important;border-color:#cbdcff!important}
+.category-modal .modal-title{position:sticky;top:0;z-index:20;background:var(--card,#fff);padding-top:4px;padding-bottom:12px;border-bottom:1px solid var(--line,#e0e7f2)}
+.category-modal .modal-title .close{position:relative;flex:0 0 auto}
+.modal{cursor:default}.modalbox{cursor:auto}
+@media(max-width:720px){
+ #app[data-page="food"] .field label{font-size:16px}
+ #app[data-page="food"] .field input,#app[data-page="food"] .field select,#app[data-page="food"] .field textarea{font-size:17px;min-height:52px}
+ #app[data-page="food"] .hint,#app[data-page="food"] small{font-size:14px}
+}
