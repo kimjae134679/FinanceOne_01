@@ -7,8 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-unsigned-apk:
+  build-and-verify-apk:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: 프로젝트 받기
@@ -27,42 +28,34 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Android SDK 설치
-        uses: android-actions/setup-android@v3
-
-      - name: Android SDK 구성
+      - name: APK 빌드
         run: |
-          yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+          npm ci
+          npx cap sync android
+          chmod +x android/gradlew
+          cd android
+          ./gradlew clean assembleDebug --stacktrace
 
-      - name: Node 패키지 설치
-        run: npm ci
+      - name: Android 가속 권한 설정
+        run: sudo chmod 666 /dev/kvm
 
-      - name: Capacitor 동기화
-        run: npx cap sync android
+      - name: 깨끗한 Android에서 APK 설치 검증
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          script: |
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm path com.financeone.mobile
+            adb shell dumpsys package com.financeone.mobile | grep -E "versionCode|versionName|firstInstallTime"
 
-      - name: Gradle 권한 설정
-        run: chmod +x android/gradlew
-
-      - name: Release APK 컴파일
-        working-directory: android
-        run: ./gradlew clean assembleRelease --stacktrace
-
-      - name: APK 정렬 및 서명 도구 준비
-        run: |
-          mkdir -p build-output
-          "$ANDROID_SDK_ROOT/build-tools/36.0.0/zipalign" \
-            -p -f 4 \
-            android/app/build/outputs/apk/release/app-release-unsigned.apk \
-            build-output/FinanceOne-Mobile-v1.5.0-unsigned-aligned.apk
-          cp "$ANDROID_SDK_ROOT/build-tools/36.0.0/lib/apksigner.jar" \
-            build-output/apksigner.jar
-
-      - name: 컴파일 결과 저장
+      - name: 설치 검증 APK 저장
         uses: actions/upload-artifact@v4
         with:
-          name: FinanceOne-v1.5.0-unsigned
-          path: build-output/
+          name: FinanceOne-v1.5.0-install-verified
+          path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
-        
