@@ -47,3 +47,11 @@ jobs:
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell pm path com.financeone.mobile
             adb shell dumpsys package com.financeone.mobile | grep -E "versionCode|versionName|firstInstallTime"
+
+      - name: 설치 검증 APK 저장
+        uses: actions/upload-artifact@v4
+        with:
+          name: FinanceOne-v1.5.0-install-verified
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 30
