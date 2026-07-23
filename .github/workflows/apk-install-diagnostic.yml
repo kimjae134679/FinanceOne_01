@@ -1,4 +1,4 @@
-name: FinanceOne APK Install Diagnostic
+name: FinanceOne Final Signed APK Install Diagnostic
 
 on:
   push:
@@ -14,31 +14,15 @@ jobs:
       - name: 프로젝트 받기
         uses: actions/checkout@v4
 
-      - name: Node.js 설치
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Java 설치
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: APK 빌드
+      - name: 최종 APK 복원 및 확인
         run: |
-          npm ci
-          npx cap sync android
-          chmod +x android/gradlew
-          cd android
-          ./gradlew clean assembleDebug --stacktrace
+          cat diagnostic/final.parts/part* > FinanceOne-Mobile-v1.5.0-GoogleDrive-Final.apk
+          echo "5845f51d294f84d29a153e025e621bd89148338f4055e489ac03337121528a9f  FinanceOne-Mobile-v1.5.0-GoogleDrive-Final.apk" | sha256sum -c -
 
       - name: Android 가속 권한 설정
         run: sudo chmod 666 /dev/kvm
 
-      - name: 깨끗한 Android에서 APK 설치
+      - name: 깨끗한 Android에서 최종 APK 설치
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
@@ -47,14 +31,14 @@ jobs:
           profile: pixel_6
           disable-animations: true
           script: |
-            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb install -r FinanceOne-Mobile-v1.5.0-GoogleDrive-Final.apk
             adb shell pm path com.financeone.mobile
             adb shell dumpsys package com.financeone.mobile | grep -E "versionCode|versionName|firstInstallTime"
 
-      - name: 설치 검증 APK 저장
+      - name: 최종 설치 검증 APK 저장
         uses: actions/upload-artifact@v4
         with:
-          name: FinanceOne-v1.5.0-install-verified
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: FinanceOne-v1.5.0-GoogleDrive-Final-Verified
+          path: FinanceOne-Mobile-v1.5.0-GoogleDrive-Final.apk
           if-no-files-found: error
           retention-days: 30
