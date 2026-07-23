@@ -1,0 +1,25 @@
+FinanceOne Mobile v1.4.9 Google 연결 설정
+
+1. 아래 주소를 PC 브라우저에서 엽니다.
+   https://console.cloud.google.com/apis/credentials
+
+2. FinanceOne에서 사용하던 Google Cloud 프로젝트를 선택합니다.
+
+3. 기존 Android OAuth 2.0 클라이언트 'FinanceOne Android'를 확인합니다.
+
+4. 아래 값을 정확히 등록합니다.
+   패키지명: com.financeone.mobile
+   SHA-1: B0:D7:8B:6D:E5:FE:72:52:DD:24:00:55:3B:1B:B4:2D:D5:F1:67:7B
+
+5. Google Drive API가 활성화됐는지 확인합니다.
+   https://console.cloud.google.com/apis/library/drive.googleapis.com
+
+6. OAuth 앱이 테스트 상태라면 로그인할 Google 계정을 테스트 사용자에 추가합니다.
+   https://console.cloud.google.com/auth/audience
+
+7. v1.4.9 APK의 설정 > Google 계정 연결을 누릅니다.
+
+중요
+- v1.4.9 APK는 기존 FinanceOne Android OAuth 등록과 같은 원래 인증서로 서명했습니다.
+- Google Cloud의 기존 Android OAuth 클라이언트를 새로 만들거나 SHA-1을 변경하지 마세요.
+- client_secret, 토큰, 키스토어 비밀번호를 프로젝트에 넣지 마세요.

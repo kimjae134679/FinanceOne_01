@@ -50,30 +50,88 @@ function sample(){
     ],
     subscriptions:[{id:uid(),service:'Netflix',category:'OTT',price:17000,day:23,paymentId:'p1',accountId:'a1',active:true}],
     stocks:[],
-    settings:{dark:false,theme:'light',fontScale:100,autoSave:true,googleAutoSync:false,currency:'KRW',dateFormat:'YYYY-MM-DD'}
+    settings:{dark:false,theme:'light',autoSave:true,googleAutoSync:false,currency:'KRW',dateFormat:'YYYY-MM-DD'}
   };
 }
 
-let S=sample(),desktopInfo=null,googleInfo={connected:false},appReady=false;
+let S=sample(),desktopInfo=null,googleInfo={connected:false},googleBackups=[],appReady=false,hadLocalData=false;
 let page='dashboard', selectedMonth=monthKey(today), txFilter='전체', lastTransactionDate=iso(today), foodMode='일', foodTab='summary', analysisMode='overview', analysisArea='지출', analysisSection='식비', analysisItem='외식/배달', excludeRent=false;
 let lastTransactionCategory={지출:{section:'',item:''},수입:{section:'',item:''},이체:{section:'',item:''}};
 let openBudgetSections=new Set();
 const googleBridge=()=>window.financeOne?.isDesktop?window.financeOne:window.Capacitor?.Plugins?.FinanceOneGoogle;
-let mobileSyncTimer=0,mobilePendingState=null;
+const GOOGLE_AUTO_KEY='financeone_google_auto_sync_v2';
+const GOOGLE_LAST_REMOTE_KEY='financeone_google_last_remote';
+const GOOGLE_FIRST_CHECK_KEY='financeone_google_first_restore_check';
+let mobileSyncTimer=0,mobilePendingState=null,suppressGoogleUpload=false;
+const googleAutoEnabled=()=>localStorage.getItem(GOOGLE_AUTO_KEY)==='1';
+function setGoogleAutoEnabled(enabled){localStorage.setItem(GOOGLE_AUTO_KEY,enabled?'1':'0');S.settings=S.settings||sample().settings;S.settings.googleAutoSync=!!enabled}
+function applyGoogleAutoPreference(){S.settings=S.settings||sample().settings;S.settings.googleAutoSync=googleAutoEnabled()}
+const backupTime=file=>new Date(file?.modifiedTime||file?.createdTime||0).getTime()||0;
+function markRemoteSynced(value){const time=typeof value==='number'?value:new Date(value||Date.now()).getTime();localStorage.setItem(GOOGLE_LAST_REMOTE_KEY,String(time||Date.now()))}
 function scheduleMobileGoogleSync(){
   const bridge=googleBridge();
-  if(window.financeOne?.isDesktop||!bridge?.googleUpload||!googleInfo.connected||S.settings.googleAutoSync!==true)return;
+  if(suppressGoogleUpload||window.financeOne?.isDesktop||!bridge?.googleUpload||!googleInfo.connected||!googleAutoEnabled())return;
   mobilePendingState=JSON.parse(JSON.stringify(S));
   clearTimeout(mobileSyncTimer);
-  const last=Number(localStorage.getItem('financeone_google_last_upload')||0);
-  const delay=Math.max(30000,15*60*1000-(Date.now()-last));
-  mobileSyncTimer=setTimeout(async()=>{const state=mobilePendingState;mobilePendingState=null;try{if(state){await bridge.googleUpload(state);localStorage.setItem('financeone_google_last_upload',String(Date.now()))}}catch(error){console.warn('Mobile Google auto sync failed',error)}},delay);
+  mobileSyncTimer=setTimeout(async()=>{const state=mobilePendingState;mobilePendingState=null;try{if(state){const result=await bridge.googleUpload(state),when=result?.lastBackupTime||new Date().toISOString();localStorage.setItem('financeone_google_last_upload',when);markRemoteSynced(when)}}catch(error){console.warn('Mobile Google auto sync failed',error)}},30000);
 }
 const save=()=>window.financeOne?.isDesktop
   ? window.financeOne.save(S).catch(()=>toast('SQLite 저장에 실패했습니다.'))
   : (localStorage.setItem('financeone_v5',JSON.stringify(S)),scheduleMobileGoogleSync());
 let toastTimer;
-const toast=m=>{const t=$('#toast');clearTimeout(toastTimer);t.textContent=m;t.classList.add('show');toastTimer=setTimeout(()=>t.classList.remove('show'),2200)};
+const toast=m=>{const t=$('#toast');if(!t)return;clearTimeout(toastTimer);t.textContent=String(m||'').slice(0,140);t.classList.add('show');toastTimer=setTimeout(()=>t.classList.remove('show'),3200)};
+const errorText=e=>String(e?.message||e||'오류가 발생했습니다.').replace(/^Error invoking remote method '[^']+':\s*/,'');
+const formatBackupDate=value=>{if(!value)return'없음';const raw=/^\d+$/.test(String(value))?Number(value):value,d=new Date(raw);return Number.isNaN(d.getTime())?String(value):d.toLocaleString('ko-KR')};
+const formatBytes=value=>{const n=Number(value)||0;if(n<1024)return`${n} B`;if(n<1024*1024)return`${(n/1024).toFixed(1)} KB`;return`${(n/1024/1024).toFixed(1)} MB`};
+function googleSetupDialog(){
+  const pkg=googleInfo.packageName||'com.financeone.mobile',sha=googleInfo.sha1||'앱에서 확인하지 못함';
+  $('#submodal').innerHTML=`<div class="modal app-confirm"><div class="modalbox confirm-box google-help-box"><div class="confirm-icon">G</div><h2>Google 연결 설정</h2><p>Google Cloud의 Android OAuth 클라이언트에 아래 두 값을 등록하면 됩니다.</p><div class="oauth-values"><label>패키지명</label><code>${esc(pkg)}</code><button data-copy-oauth="${esc(pkg)}">복사</button><label>SHA-1</label><code>${esc(sha)}</code><button data-copy-oauth="${esc(sha)}">복사</button></div><ol><li>Google Cloud Console의 사용자 인증 정보 페이지를 엽니다.</li><li>Android OAuth 클라이언트를 선택하거나 새로 만듭니다.</li><li>위 패키지명과 SHA-1을 붙여넣고 저장합니다.</li><li>1~5분 뒤 앱에서 다시 연결합니다.</li></ol><div class="modal-actions"><button class="pill" id="closeGoogleHelp">닫기</button><button class="btn primary" id="openGoogleConsole">Google Cloud 열기</button></div></div></div>`;
+  $('#closeGoogleHelp').onclick=closeSubmodal;
+  $$('[data-copy-oauth]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copyOauth);toast('복사했습니다.')}catch(_){toast('길게 눌러 값을 복사해 주세요.')}});
+  $('#openGoogleConsole').onclick=async()=>{const bridge=googleBridge();try{if(bridge?.openGoogleCloudConsole)await bridge.openGoogleCloudConsole();else window.open(googleInfo.cloudConsoleUrl||'https://console.cloud.google.com/apis/credentials','_blank')}catch(e){toast(errorText(e))}};
+}
+function handleGoogleError(error){
+  const text=errorText(error),code=String(error?.code||'');
+  if(code.includes('OAUTH_CONFIG_MISMATCH')||/UnregisteredOnApiConsole|DEVELOPER_ERROR|OAuth 설정|연결 설정/.test(text)){toast('Google 연결 설정이 필요합니다.');googleSetupDialog();return}
+  toast(text);
+}
+async function loadGoogleBackups({rerender=true}={}){
+  const bridge=googleBridge();
+  if(!googleInfo.connected||!bridge?.listBackups){googleBackups=[];if(rerender)render();return}
+  try{const result=await bridge.listBackups();googleBackups=Array.isArray(result?.files)?result.files:[];if(result?.lastBackupTime)googleInfo.lastBackupTime=result.lastBackupTime;if(rerender)render()}
+  catch(error){handleGoogleError(error)}
+}
+async function restoreGoogleBackupFile(file,{silent=false}={}){
+  const bridge=googleBridge();
+  if(!bridge?.restoreBackup||!file?.id)return false;
+  const result=await bridge.restoreBackup({fileId:file.id});
+  if(!validBackup(result?.state))throw Error('Drive 백업 형식이 올바르지 않거나 손상되었습니다.');
+  const enabled=googleAutoEnabled();
+  S=result.state;S.settings=S.settings||sample().settings;S.settings.googleAutoSync=false;
+  normalizeAssetPayments();normalizeTransactions();
+  suppressGoogleUpload=true;
+  try{await save()}finally{suppressGoogleUpload=false}
+  S.settings.googleAutoSync=enabled;
+  markRemoteSynced(backupTime(file));
+  const wasReady=appReady;appReady=false;render();appReady=wasReady;
+  if(!silent)toast('Google Drive 데이터를 불러왔습니다.');
+  return true;
+}
+function offerGoogleRestore(file){
+  if(!file)return;
+  localStorage.setItem(GOOGLE_FIRST_CHECK_KEY,'1');
+  markRemoteSynced(backupTime(file));
+  confirmDialog({title:'Drive에 기존 데이터가 있습니다',message:'Google Drive에 저장된 FinanceOne 데이터를 이 기기로 불러올까요?',details:['불러오기를 누르면 현재 데이터를 Drive 데이터로 교체합니다.','자동 백업은 직접 켜기 전까지 꺼진 상태로 유지됩니다.'],confirmText:'불러오기',danger:false,onConfirm:async()=>{try{await restoreGoogleBackupFile(file)}catch(error){handleGoogleError(error)}}});
+}
+async function checkGoogleRemoteOnStart(){
+  if(!googleInfo.connected||!googleBackups.length)return;
+  const latest=googleBackups[0],remote=backupTime(latest),last=Number(localStorage.getItem(GOOGLE_LAST_REMOTE_KEY)||0);
+  if(googleAutoEnabled()&&last&&remote>last){
+    try{await restoreGoogleBackupFile(latest,{silent:true});toast('다른 기기에서 저장된 최신 데이터를 받았습니다.')}catch(error){handleGoogleError(error)}
+    return;
+  }
+  if(!last&&localStorage.getItem(GOOGLE_FIRST_CHECK_KEY)!=='1')offerGoogleRestore(latest);
+}
 const monthTx=()=>S.transactions.filter(x=>x.date.startsWith(selectedMonth));
 const paymentOptions=()=>S.accounts.filter(x=>x.paymentEnabled).map(x=>({id:x.id,name:x.name,icon:x.paymentIcon||'💳',color:x.paymentColor||'#2966ff'}));
 const pay=id=>{const a=S.accounts.find(x=>x.id===id);if(a)return{name:a.name,icon:a.paymentIcon||'💳',color:a.paymentColor||'#2966ff'};return S.payments.find(x=>x.id===id)||{name:'미지정',icon:'?',color:'#8795aa'}};
@@ -89,17 +147,7 @@ const items=(a,s)=>S.categories.filter(x=>x.area===a&&x.section===s);
 const rentTx=x=>x.type==='지출'&&(x.item==='월세'||x.title==='월세'||x.section==='월세'||String(x.title||'').includes('월세'));
 const visibleMonthTx=()=>monthTx().filter(x=>!excludeRent||!rentTx(x));
 const totals=()=>{const tx=visibleMonthTx(),inc=tx.filter(x=>x.type==='수입').reduce((a,b)=>a+Math.abs(b.amount),0),exp=tx.filter(x=>x.type==='지출').reduce((a,b)=>a+Math.abs(b.amount),0);return{inc,exp,sav:inc-exp}};
-const usedFor=b=>monthTx().filter(x=>x.type==='지출'&&x.area===b.area&&x.section===b.section).reduce((a,x)=>a+Math.abs(x.amount),0);
-function normalizeBudgets(){
-  const merged=new Map();
-  (S.budgets||[]).forEach(b=>{
-    const area=b.area||'지출',section=b.section||'';if(!section)return;
-    const key=`${area}|${section}`,prev=merged.get(key);
-    if(prev)prev.amount+=Number(b.amount)||0;
-    else merged.set(key,{id:b.id||uid(),area,section,amount:Number(b.amount)||0});
-  });
-  S.budgets=[...merged.values()];
-}
+const usedFor=b=>monthTx().filter(x=>x.type==='지출'&&x.area===b.area&&x.section===b.section&&x.item===b.item).reduce((a,x)=>a+Math.abs(x.amount),0);
 const accountFlow=id=>S.transactions.reduce((sum,x)=>sum+(x.accountId===id?Number(x.amount)||0:0)+(x.targetAccountId===id?Math.abs(Number(x.amount)||0):0),0);
 const balance=a=>a.trackBalance===false?0:(Number(a.opening)||0)+accountFlow(a.id);
 function normalizeTransactions(){S.transactions.forEach(x=>{if(x.area==='수입'||x.type==='수입'){x.type='수입';x.area='수입';x.amount=Math.abs(Number(x.amount)||0)}else if(x.area==='지출'||x.type==='지출'){x.type='지출';x.area='지출';x.amount=-Math.abs(Number(x.amount)||0)}else if(x.area==='이체'||x.type==='이체'){x.type='이체';x.area='이체'}})}
@@ -135,7 +183,7 @@ function categorySelects(prefix,a='지출',s='',i=''){a=areas().includes(a)?a:ar
 
 function side(){const t=totals();$('#side').innerHTML=`<h3>이번 달 요약</h3><p><b class="blue">수입</b><strong>${money(t.inc)}</strong></p><p><b class="red">지출</b><strong>${money(t.exp)}</strong></p><p><b class="green">잔액</b><strong>${money(t.sav)}</strong></p>`}
 function dashboard(){const t=totals(),spend=categoryTotals(),recent=[...visibleMonthTx()].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6),tracked=S.accounts.filter(x=>x.trackBalance!==false);return header('대시보드','<button class="pill rent-toggle '+(excludeRent?'active':'')+'" id="toggleRent">'+(excludeRent?'월세 포함':'월세 제외')+'</button><button class="btn primary" id="addTx">+ 거래 추가</button>')+`<div class="grid cols4">${metric('＋','soft-blue','이번 달 수입',money(t.inc),`${visibleMonthTx().filter(x=>x.type==='수입').length}건`)}${metric('−','soft-red','이번 달 지출',money(t.exp),`${visibleMonthTx().filter(x=>x.type==='지출').length}건`)}${metric('₩','soft-green','이번 달 잔액',money(t.sav),'수입 − 지출')}${metric('⌂','soft-purple','총 자산',money(tracked.reduce((a,x)=>a+balance(x),0)),`${tracked.length}개 자산`)}</div><div class="grid cols2 section-gap"><div class="card"><h3>카테고리별 지출</h3>${spend.length?`<div class="chart-pair">${donut(spend,`총 지출\n${money(t.exp)}`)}${legend(spend)}</div>`:empty('이번 달 지출이 없습니다.')}</div><div class="card"><h3>일별 지출 추이</h3>${barChart(dailyData())}</div></div><div class="grid cols2 section-gap"><div class="card"><div class="card-head"><h3>소비 캘린더</h3><span>날짜를 누르면 거래를 확인할 수 있습니다.</span></div>${calendar()}</div><div class="card"><div class="card-head"><h3>최근 거래</h3><button class="link" data-go="transactions">전체 보기</button></div>${recent.length?recent.map(txLine).join(''):empty('거래가 없습니다.')}</div></div>`}
-function txLine(x){return `<div class="tx-line compact-tx" data-edit-tx="${x.id}" tabindex="0" role="button"><i class="tx-dot ${x.type==='수입'?'income':x.type==='이체'?'transfer':'expense'}">${txIcon(x)}</i><div class="tx-copy"><b class="tx-title">${esc(x.title)}</b><span class="tx-meta-row"><i class="tx-meta-text">${esc(txCatLabel(x))} ㅣ ${esc(txAsset(x))}${Number(x.splitCount)>1?` ㅣ ${Number(x.splitCount)}N빵`:''}</i></span></div><div class="tx-amount-cluster"><span class="tx-inline-actions"><button class="tx-copy-btn" data-copy-tx="${x.id}" title="거래 복사" aria-label="거래 복사">=</button><button class="tx-delete-btn" data-del-tx="${x.id}" title="거래 삭제" aria-label="거래 삭제">×</button></span><strong class="${x.amount>=0?'blue':'red'}">${x.amount>=0?'+':''}${money(x.amount)}</strong></div></div>`}
+function txLine(x){return `<div class="tx-line compact-tx" data-edit-tx="${x.id}" tabindex="0" role="button"><i class="tx-dot ${x.type==='수입'?'income':x.type==='이체'?'transfer':'expense'}">${txIcon(x)}</i><div class="tx-copy"><b class="tx-title">${esc(x.title)}</b><span class="tx-meta-row"><i class="tx-meta-text">${esc(txCatLabel(x))} ㅣ ${esc(txAsset(x))}${Number(x.splitCount)>1?` ㅣ ${Number(x.splitCount)}N빵`:''}</i><span class="tx-inline-actions"><button class="tx-copy-btn" data-copy-tx="${x.id}" title="거래 복사" aria-label="거래 복사">=</button><button class="tx-delete-btn" data-del-tx="${x.id}" title="거래 삭제" aria-label="거래 삭제">×</button></span></span></div><strong class="${x.amount>=0?'blue':'red'}">${x.amount>=0?'+':''}${money(x.amount)}</strong></div>`}
 function dailyData(filter=()=>true){const [y,m]=selectedMonth.split('-').map(Number),days=new Date(y,m,0).getDate(),map={};visibleMonthTx().filter(x=>x.type==='지출'&&filter(x)).forEach(x=>map[Number(x.date.slice(8))]=(map[Number(x.date.slice(8))]||0)+Math.abs(x.amount));return Array.from({length:days},(_,i)=>({label:`${i+1}일`,value:map[i+1]||0})).filter(x=>x.value||days<=14)}
 function calendar(){const [y,m]=selectedMonth.split('-').map(Number),first=new Date(y,m-1,1).getDay(),days=new Date(y,m,0).getDate(),map={};monthTx().filter(x=>x.type==='지출').forEach(x=>map[Number(x.date.slice(8))]=(map[Number(x.date.slice(8))]||0)+Math.abs(x.amount));return `<div class="calendar"><div class="weekdays">${['일','월','화','수','목','금','토'].map(x=>`<b>${x}</b>`).join('')}</div><div class="cal-grid">${'<i></i>'.repeat(first)}${Array.from({length:days},(_,i)=>{const d=i+1,v=map[d]||0;return `<button data-day="${d}" class="${v?'spent':''}"><b>${d}</b>${v?`<span>${money(v)}</span>`:''}</button>`}).join('')}</div></div>`}
 
@@ -161,24 +209,15 @@ function statList(data,attr,selected){return data.length?`<div class="stat-list"
 function analysis(){const all=monthTx().filter(x=>x.type!=='이체'),areaRows=groupedStats(all,'area');if(!areaRows.some(x=>x.name===analysisArea))analysisArea=areaRows[0]?.name||'지출';const areaTx=all.filter(x=>x.area===analysisArea),sectionRows=groupedStats(areaTx,'section');if(!sectionRows.some(x=>x.name===analysisSection))analysisSection=sectionRows[0]?.name||'';const sectionTx=areaTx.filter(x=>x.section===analysisSection),itemRows=groupedStats(sectionTx,'item');if(!itemRows.some(x=>x.name===analysisItem))analysisItem=itemRows[0]?.name||'';const itemTx=sectionTx.filter(x=>x.item===analysisItem),contentRows=groupedStats(itemTx,'title'),sum=itemTx.reduce((a,x)=>a+Math.abs(x.amount),0),top=contentRows[0];return header('분석 및 통계')+`<div class="analysis-path"><button data-analysis-pick="area">${analysisArea||'영역'} <i>⌄</i></button><b>›</b><button data-analysis-pick="section">${analysisSection||'분류'} <i>⌄</i></button><b>›</b><button data-analysis-pick="item">${analysisItem||'항목'} <i>⌄</i></button><span>각 단계를 눌러 분석 대상을 바꿀 수 있습니다.</span></div><div class="grid cols3">${metric('₩','soft-blue','선택 합계',money(sum),`${itemTx.length}건`)}${metric('◫','soft-green','건당 평균',money(itemTx.length?sum/itemTx.length:0),'선택 항목 기준')}${metric('★','soft-orange','가장 많이 쓴 내용',top?.name||'없음',top?`${top.count}건 · ${money(top.value)}`:'거래 없음')}</div><div class="analysis-grid section-gap"><div class="card"><h3>1. 영역</h3>${statList(areaRows,'data-analysis-area',analysisArea)}</div><div class="card"><h3>2. 분류</h3>${statList(sectionRows,'data-analysis-section',analysisSection)}</div><div class="card"><h3>3. 항목</h3>${statList(itemRows,'data-analysis-item',analysisItem)}</div></div><div class="grid cols2 section-gap"><div class="card"><h3>${esc(analysisItem)} 내용별 통계</h3>${statList(contentRows,'data-analysis-title','')}</div><div class="card"><h3>내용별 금액 비교</h3>${contentRows.length?barChart(contentRows.slice(0,10).map(x=>({label:x.name,value:x.value}))):empty('표시할 데이터가 없습니다.')}</div></div><div class="card section-gap"><h3>선택 항목 거래</h3>${itemTx.length?`<table class="table responsive-table"><thead><tr><th>날짜</th><th>내용</th><th>금액</th><th>자산</th><th>메모</th></tr></thead><tbody>${[...itemTx].sort((a,b)=>b.date.localeCompare(a.date)).map(x=>`<tr class="clickable-row" data-row-edit="${x.id}" tabindex="0"><td data-label="날짜">${x.date}</td><td data-label="내용"><b>${esc(x.title)}</b></td><td data-label="금액" class="${x.amount>=0?'blue':'red'}"><b>${money(Math.abs(x.amount))}</b></td><td data-label="자산">${pay(x.paymentId).icon} ${esc(pay(x.paymentId).name)}</td><td data-label="메모">${esc(x.memo)}</td></tr>`).join('')}</tbody></table>`:empty('거래가 없습니다.')}</div>`}
 
 function budget(){
-  normalizeBudgets();
-  const groups=S.budgets.map(b=>{
-    const sectionItems=items(b.area,b.section);
-    const used=usedFor(b);
-    const details=sectionItems.map(c=>({
-      ...c,
-      used:monthTx().filter(x=>x.type==='지출'&&x.area===b.area&&x.section===b.section&&x.item===c.item).reduce((a,x)=>a+Math.abs(x.amount),0)
-    })).filter(x=>x.used>0);
-    return {...b,key:`${b.area}|${b.section}`,used,items:details};
-  }).sort((a,b)=>b.amount-a.amount||a.section.localeCompare(b.section,'ko'));
+  const rows=S.budgets.map(b=>({...b,used:usedFor(b)}));
+  const grouped={};
+  rows.forEach(b=>{const key=`${b.area}|${b.section}`;const g=grouped[key]||(grouped[key]={key,area:b.area,section:b.section,amount:0,used:0,items:[]});g.amount+=Number(b.amount)||0;g.used+=Number(b.used)||0;g.items.push(b)});
+  const groups=Object.values(grouped).sort((a,b)=>b.amount-a.amount||a.section.localeCompare(b.section,'ko'));
   const total=groups.reduce((a,b)=>a+b.amount,0),used=groups.reduce((a,b)=>a+b.used,0);
-  const body=groups.map(g=>{
-    const r=g.amount?g.used/g.amount*100:0,open=openBudgetSections.has(g.key);
-    const color=g.items[0]?.color||S.categories.find(c=>c.area===g.area&&c.section===g.section)?.color||'#2966ff';
-    return `<tbody class="budget-group"><tr class="budget-section-row" data-toggle-budget-section="${esc(g.key)}"><td><button class="budget-fold" aria-label="세부 사용액 ${open?'접기':'펼치기'}">${open?'▾':'▸'}</button> <b>${esc(g.section)}</b><small>${g.items.length}개 사용 항목</small></td><td><b>${money(g.amount)}</b></td><td>${money(g.used)}</td><td>${money(g.amount-g.used)}</td><td><b>${r.toFixed(1)}%</b><div class="progress"><span style="width:${Math.min(r,100)}%;background:${color}"></span></div></td><td class="actions budget-parent-actions"><button data-edit-budget="${g.id}">수정</button><button data-del-budget="${g.id}">삭제</button></td></tr>${open?(g.items.length?g.items.map(c=>{const ir=g.amount?c.used/g.amount*100:0;return `<tr class="budget-item-row"><td><span class="budget-indent">${c.icon} ${esc(c.item)}</span></td><td><span class="budget-detail-dash">—</span></td><td>${money(c.used)}</td><td><span class="budget-detail-dash">—</span></td><td><b>${ir.toFixed(1)}%</b><div class="progress"><span style="width:${Math.min(ir,100)}%;background:${c.color}"></span></div></td><td></td></tr>`}).join(''):`<tr class="budget-item-row budget-empty-detail"><td colspan="6">이번 달 세부 사용 내역이 없습니다.</td></tr>`):''}</tbody>`
-  }).join('');
-  return header('예산 관리','<button class="pill" id="manageCats">카테고리 관리</button><button class="btn primary" id="addBudget">+ 예산 추가</button>')+`<div class="grid cols3">${metric('₩','soft-blue','총 예산',money(total),`${groups.length}개 큰 분류`)}${metric('−','soft-red','사용액',money(used),'거래에서 자동 계산')}${metric('＋','soft-green','남은 예산',money(total-used),`${total?Math.round(used/total*100):0}% 사용`)}</div><div class="card section-gap"><div class="card-head"><div><h3>분류별 예산</h3><p class="hint">식비·교통 같은 큰 분류에 예산을 지정하고, 펼치면 세부 항목별 사용액을 확인할 수 있습니다.</p></div></div>${groups.length?`<div class="table-wrap"><table class="table budget-hierarchy"><colgroup><col><col><col><col><col><col></colgroup><thead><tr><th>큰 분류 / 세부 항목</th><th>예산</th><th>사용액</th><th>남은 금액</th><th>사용률</th><th></th></tr></thead>${body}</table></div>`:empty('등록된 예산이 없습니다.')}</div>`
+  const body=groups.map(g=>{const r=g.amount?g.used/g.amount*100:0,open=openBudgetSections.has(g.key);return `<tbody class="budget-group"><tr class="budget-section-row" data-toggle-budget-section="${esc(g.key)}"><td><button class="budget-fold" aria-label="하위 예산 ${open?'접기':'펼치기'}">${open?'▾':'▸'}</button> <b>${esc(g.section)}</b><small>${g.items.length}개 항목</small></td><td><b>${money(g.amount)}</b></td><td>${money(g.used)}</td><td>${money(g.amount-g.used)}</td><td><b>${r.toFixed(1)}%</b><div class="progress"><span style="width:${Math.min(r,100)}%;background:${g.items[0]?cat(g.items[0].area,g.items[0].section,g.items[0].item).color:'#2966ff'}"></span></div></td><td></td></tr>${open?g.items.map(b=>{const ir=b.amount?b.used/b.amount*100:0;return `<tr class="budget-item-row"><td><span class="budget-indent">${cat(b.area,b.section,b.item).icon} ${esc(b.item)}</span></td><td>${money(b.amount)}</td><td>${money(b.used)}</td><td>${money(b.amount-b.used)}</td><td><b>${ir.toFixed(1)}%</b><div class="progress"><span style="width:${Math.min(ir,100)}%;background:${cat(b.area,b.section,b.item).color}"></span></div></td><td class="actions"><button data-edit-budget="${b.id}">수정</button><button data-del-budget="${b.id}">삭제</button></td></tr>`}).join(''):''}</tbody>`}).join('');
+  return header('예산 관리','<button class="pill" id="manageCats">카테고리 관리</button><button class="btn primary" id="addBudget">+ 예산 추가</button>')+`<div class="grid cols3">${metric('₩','soft-blue','총 예산',money(total),`${groups.length}개 큰 분류`)}${metric('−','soft-red','사용액',money(used),'거래에서 자동 계산')}${metric('＋','soft-green','남은 예산',money(total-used),`${total?Math.round(used/total*100):0}% 사용`)}</div><div class="card section-gap"><div class="card-head"><div><h3>분류별 예산</h3><p class="hint">식비·교통 같은 큰 분류를 먼저 보고, 행을 누르면 소분류 예산이 펼쳐집니다.</p></div></div>${groups.length?`<div class="table-wrap"><table class="table budget-hierarchy"><thead><tr><th>큰 분류 / 세부 항목</th><th>예산</th><th>사용액</th><th>남은 금액</th><th>사용률</th><th></th></tr></thead>${body}</table></div>`:empty('등록된 예산이 없습니다.')}</div>`
 }
+
 function subscriptions(){const sum=S.subscriptions.filter(x=>x.active).reduce((a,b)=>a+b.price,0);return header('정기 구독 관리','<button class="btn primary" id="addSub">+ 구독 추가</button>')+`<div class="grid cols3">${metric('↻','soft-purple','월 구독료',money(sum),'활성 구독 합계')}${metric('✓','soft-green','활성 구독',S.subscriptions.filter(x=>x.active).length+'개','예산에 포함')}${metric('▣','soft-orange','연간 예상',money(sum*12),'월 구독료 × 12')}</div><div class="card section-gap"><table class="table"><thead><tr><th>서비스</th><th>종류</th><th>월 요금</th><th>결제일</th><th>자산</th><th>상태</th><th></th></tr></thead><tbody>${S.subscriptions.map(s=>`<tr><td><b>${esc(s.service)}</b></td><td>${esc(s.category)}</td><td>${money(s.price)}</td><td>매월 ${s.day}일</td><td>${pay(s.paymentId).icon} ${esc(pay(s.paymentId).name)}</td><td><span class="tag ${s.active?'soft-green':'soft-orange'}">${s.active?'활성':'정지'}</span></td><td class="actions"><button data-edit-sub="${s.id}">수정</button><button data-toggle-sub="${s.id}">${s.active?'정지':'재개'}</button><button data-del-sub="${s.id}">삭제</button></td></tr>`).join('')}</tbody></table></div>`}
 function foodTx(){return monthTx().filter(x=>x.type==='지출'&&x.section==='식비'&&cat(x.area,x.section,x.item).foodAnalysis===true)}
 function foodItemStats(){const list=foodTx(),[y,m]=selectedMonth.split('-').map(Number),days=new Date(y,m,0).getDate(),weeks=days/7,map={};list.forEach(x=>{const name=(x.title||x.item||'미지정').trim()||'미지정',row=map[name]||(map[name]={name,value:0,count:0,last:'',dates:[]});row.value+=Math.abs(x.amount);row.count++;row.dates.push(x.date);if(x.date>row.last)row.last=x.date});return Object.values(map).map(row=>{const dates=[...new Set(row.dates)].sort(),gaps=[];for(let i=1;i<dates.length;i++){gaps.push((new Date(`${dates[i]}T00:00:00`)-new Date(`${dates[i-1]}T00:00:00`))/86400000)}const cycle=gaps.length?gaps.reduce((a,x)=>a+x,0)/gaps.length:0;return {...row,weekly:row.value/weeks,daily:row.value/days,purchase:row.value/row.count,cycle}}).sort((a,b)=>b.value-a.value)}
@@ -248,18 +287,27 @@ function stockModal(id=null){
 }
 function deleteStock(id){const x=S.stocks.find(v=>v.id===id);confirmDialog({title:'주식 거래 삭제',message:`${x?.displayName||x?.symbol||'선택한 거래'} 기록을 삭제할까요?`,details:[`${x?.date||''} · ${x?.side||''}`],confirmText:'삭제',danger:true,onConfirm:()=>{S.stocks=S.stocks.filter(v=>v.id!==id);render();toast('주식 거래를 삭제했습니다.')}})}
 
-function settings(){const fontScale=Math.min(140,Math.max(80,Number(S.settings.fontScale)||100));return header('설정')+`<div class="grid cols2"><div class="card"><div class="card-head"><h3>카테고리 관리</h3><button class="btn primary" id="manageCats">관리창 열기</button></div><p class="hint">영역·분류·항목을 별도 관리창에서 추가·변경·삭제할 수 있습니다.</p><div class="category-summary">${areas().map(a=>`<p><b>${a}</b><span>${sections(a).length}개 분류 · ${S.categories.filter(x=>x.area===a).length}개 항목</span></p>`).join('')}</div></div><div class="card"><div class="card-head"><h3>자산 설정</h3><button class="btn primary" data-go="assets">자산 관리로 이동</button></div><p class="hint">계좌·카드·현금·전자지갑은 모두 자산 관리에서 관리합니다.</p><div class="summary-lines"><p><span>전체 자산 항목</span><b>${S.accounts.length}개</b></p><p><span>거래 사용 가능 자산</span><b>${paymentOptions().length}개</b></p></div></div><div class="card"><h3>화면 및 저장</h3><div class="manage-row font-scale-row"><span><b>글씨 크기</b><small>앱 전체 글씨 크기</small></span><div class="font-scale-control"><button class="pill" id="fontSmaller" aria-label="글씨 작게">−</button><input id="fontScale" type="range" min="80" max="140" step="5" value="${fontScale}"><button class="pill" id="fontLarger" aria-label="글씨 크게">＋</button><b id="fontScaleValue">${fontScale}%</b></div></div><div class="manage-row"><span>다크 모드</span><button class="pill" id="toggleDark">${S.settings.dark?'켜짐':'꺼짐'}</button></div><div class="manage-row"><span>로컬 자동 저장</span><b>변경 후 저장</b></div><p class="hint">글씨 크기와 화면 설정은 자동 저장되어 다음 실행에도 유지됩니다.</p></div><div class="card"><h3>데이터 관리</h3><div class="data-actions"><button class="pill" id="exportData">백업 파일 저장</button><button class="pill" id="importDataButton">백업 복원</button><input type="file" id="importData" accept="application/json" hidden><button class="pill danger" id="resetData">전체 초기화</button></div></div></div>`}
-function settingsPage(){const themes=[['light','라이트','☀'],['dark','다크','◐'],['midnight','미드나이트','☾'],['forest','포레스트','🌲'],['rose','로즈','🌸'],['sand','샌드','🏜'],['system','시스템','◫']];return settings()+`<div class="card section-gap google-sync-card"><div class="card-head"><div><h3>Google 계정 및 Drive 동기화</h3><p class="hint">FinanceOne 데이터만 Google Drive의 앱 전용 비공개 공간에 저장합니다.</p></div><span class="google-status ${googleInfo.connected?'connected':''}">${googleInfo.connected?'● 연결됨':'○ 연결 안 됨'}</span></div>${googleInfo.connected?`<div class="google-account"><div class="google-avatar">G</div><div><b>${esc(googleInfo.name||'Google 사용자')}</b><span>${esc(googleInfo.email||'연결된 Google 계정')}</span></div></div><div class="data-actions"><button class="btn primary" id="googleUpload">현재 데이터를 Drive에 저장</button><button class="pill" id="googleDownload">Drive 데이터 불러오기</button><button class="pill danger" id="googleDisconnect">연결 해제</button></div>`:`<div class="google-connect"><div><b>PC와 다른 기기 사이의 데이터 이동을 준비하세요.</b><span>Google 로그인 후 수동으로 올리거나 내려받을 수 있습니다.</span></div><button class="btn primary" id="googleLogin">Google 계정 연결</button></div>`}</div><div class="grid cols2 section-gap"><div class="card"><h3>색상 테마</h3><p class="hint">선택 즉시 적용되고 자동 저장됩니다.</p><div class="theme-grid">${themes.map(([id,name,icon])=>`<button data-theme="${id}" class="theme-option ${S.settings.theme===id?'active':''}"><i>${icon}</i><b>${name}</b><span></span></button>`).join('')}</div></div><div class="card"><h3>데이터 보호 및 내보내기</h3><div class="summary-lines"><p><span>앱 버전</span><b>${desktopInfo?.version||'웹 미리보기'}</b></p><p><span>자동 백업</span><b>${desktopInfo?`${desktopInfo.backupCount||0}개 보관`:'데스크톱에서 사용'}</b></p><p><span>저장 방식</span><b>${desktopInfo?'SQLite':'브라우저 저장소'}</b></p></div><div class="data-actions section-gap"><button class="pill" id="exportCsv">거래 CSV 내보내기</button></div></div></div>`}
+function settings(){return header('설정')+`<div class="grid cols2"><div class="card"><div class="card-head"><h3>카테고리 관리</h3><button class="btn primary" id="manageCats">관리창 열기</button></div><p class="hint">영역·분류·항목을 별도 관리창에서 추가·변경·삭제할 수 있습니다.</p><div class="category-summary">${areas().map(a=>`<p><b>${a}</b><span>${sections(a).length}개 분류 · ${S.categories.filter(x=>x.area===a).length}개 항목</span></p>`).join('')}</div></div><div class="card"><div class="card-head"><h3>자산 설정</h3><button class="btn primary" data-go="assets">자산 관리로 이동</button></div><p class="hint">계좌·카드·현금·전자지갑은 모두 자산 관리에서 관리합니다.</p><div class="summary-lines"><p><span>전체 자산 항목</span><b>${S.accounts.length}개</b></p><p><span>거래 사용 가능 자산</span><b>${paymentOptions().length}개</b></p></div></div><div class="card"><h3>화면 및 저장</h3><div class="manage-row"><span>다크 모드</span><button class="pill" id="toggleDark">${S.settings.dark?'켜짐':'꺼짐'}</button></div><div class="manage-row"><span>로컬 자동 저장</span><b>변경 후 저장</b></div><p class="hint">처음 실행해 화면만 열린 상태에서는 빈 데이터를 덮어쓰지 않습니다. 거래·설정 등 변경이 생긴 뒤부터 로컬에 저장됩니다.</p></div><div class="card"><h3>데이터 관리</h3><div class="data-actions"><button class="pill" id="exportData">백업 파일 저장</button><button class="pill" id="importDataButton">백업 복원</button><input type="file" id="importData" accept="application/json" hidden><button class="pill danger" id="resetData">전체 초기화</button></div></div></div>`}
+function settingsPage(){
+  const themes=[['light','라이트','☀'],['dark','다크','◐'],['midnight','미드나이트','☾'],['forest','포레스트','🌲'],['rose','로즈','🌸'],['sand','샌드','🏜'],['system','시스템','◫']];
+  const last=googleInfo.lastBackupTime||localStorage.getItem('financeone_google_last_upload');
+  const backupRows=googleBackups.length?googleBackups.map(file=>`<div class="drive-backup-row"><div><b>${esc(formatBackupDate(file.createdTime||file.modifiedTime))}</b><span>${esc(file.appVersion||'이전 버전')} · ${formatBytes(file.size)}</span></div><div><button class="pill" data-restore-backup="${esc(file.id)}">복원</button><button class="pill danger" data-delete-backup="${esc(file.id)}">삭제</button></div></div>`).join(''):`<p class="hint drive-empty">저장된 Drive 백업이 없습니다.</p>`;
+  return settings()+`<div class="card section-gap google-sync-card"><div class="card-head"><div><h3>Google 계정 및 Drive 동기화</h3><p class="hint">FinanceOne 데이터만 Google Drive의 앱 전용 비공개 공간에 저장합니다.</p></div><span class="google-status ${googleInfo.connected?'connected':''}">${googleInfo.connected?'● 연결됨':'○ 연결 안 됨'}</span></div>${googleInfo.connected?`<div class="google-account"><div class="google-avatar">G</div><div><b>${esc(googleInfo.name||'Google 사용자')}</b><span>${esc(googleInfo.email||'연결된 Google 계정')}</span></div></div><div class="summary-lines google-backup-summary"><p><span>최근 백업</span><b>${esc(formatBackupDate(last))}</b></p></div><div class="data-actions"><button class="btn primary" id="googleUpload">지금 백업</button><button class="pill" id="refreshGoogleBackups">백업 목록 새로고침</button><button class="pill danger" id="googleDisconnect">연결 해제</button></div><div class="drive-backup-list"><div class="card-head"><h4>백업 목록</h4><span>${googleBackups.length}개</span></div>${backupRows}</div>`:`<div class="google-connect"><div><b>PC와 다른 기기 사이의 데이터 이동을 준비하세요.</b><span>Google 로그인 후 수동으로 백업하거나 복원할 수 있습니다.</span></div><button class="btn primary" id="googleLogin">Google 계정 연결</button></div><div class="oauth-help-inline"><span>연결 오류가 나나요?</span><button class="pill" id="googleSetupHelp">해결 방법</button></div>`}</div><div class="grid cols2 section-gap"><div class="card"><h3>색상 테마</h3><p class="hint">선택 즉시 적용되고 자동 저장됩니다.</p><div class="theme-grid">${themes.map(([id,name,icon])=>`<button data-theme="${id}" class="theme-option ${S.settings.theme===id?'active':''}"><i>${icon}</i><b>${name}</b><span></span></button>`).join('')}</div></div><div class="card"><h3>데이터 보호 및 내보내기</h3><div class="summary-lines"><p><span>앱 버전</span><b>${esc(googleInfo.appVersion||desktopInfo?.version||'웹 미리보기')}</b></p><p><span>로컬 백업</span><b>JSON 파일</b></p><p><span>저장 방식</span><b>${desktopInfo?'SQLite':'기기 저장소'}</b></p></div><div class="data-actions section-gap"><button class="pill" id="exportCsv">거래 CSV 내보내기</button><button class="pill" id="exportData">로컬 내보내기</button><button class="pill" id="importDataButton">로컬 가져오기</button></div></div></div>`
+}
 
 function more(){return header('전체 메뉴')+`<div class="mobile-more-grid"><button data-go="stocks"><i>▦</i><span><b>주식 관리</b><small>보유 종목·평가손익·수익률</small></span><em>›</em></button><button data-go="budget"><i>♜</i><span><b>예산 관리</b><small>카테고리별 한도와 사용액</small></span><em>›</em></button><button data-go="subscriptions"><i>⟳</i><span><b>정기 구독</b><small>월 구독료와 결제일 관리</small></span><em>›</em></button><button data-go="food"><i>▥</i><span><b>식비 분석</b><small>식비 기록과 소비 패턴</small></span><em>›</em></button><button data-go="assets"><i>⌂</i><span><b>자산 관리</b><small>카드·계좌·현금 관리</small></span><em>›</em></button><button data-go="settings"><i>⚙</i><span><b>설정</b><small>카테고리·테마·동기화</small></span><em>›</em></button></div>`}
 const pages={dashboard,transactions,analysis:analysisPage,budget,subscriptions,food,assets,stocks,settings:settingsPage,more};
-function render(){syncSubscriptions();ensureStocks();S.settings=S.settings||sample().settings;if(S.settings.googleAutoSync==null)S.settings.googleAutoSync=false;if(S.settings.fontScale==null)S.settings.fontScale=100;normalizeBudgets();const chosen=S.settings.theme||(S.settings.dark?'dark':'light'),resolved=chosen==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):chosen;document.documentElement.dataset.theme=resolved;document.documentElement.classList.toggle('dark',['dark','midnight'].includes(resolved));document.documentElement.style.setProperty('--app-font-scale',String(Math.min(140,Math.max(80,Number(S.settings.fontScale)||100))/100));side();$('#app').dataset.page=page;$('#app').innerHTML=pages[page]();const secondary=['budget','subscriptions','food','assets','stocks','settings'];$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page||(b.dataset.page==='more'&&secondary.includes(page))));bind();if(appReady)save()}
+function render(){syncSubscriptions();ensureStocks();applyGoogleAutoPreference();const chosen=S.settings.theme||(S.settings.dark?'dark':'light'),resolved=chosen==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):chosen;document.documentElement.dataset.theme=resolved;document.documentElement.classList.toggle('dark',['dark','midnight'].includes(resolved));side();$('#app').dataset.page=page;$('#app').innerHTML=pages[page]();const secondary=['budget','subscriptions','food','assets','stocks','settings'];$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page||(b.dataset.page==='more'&&secondary.includes(page))));bind();if(appReady)save()}
 function bind(){
   $('#toggleRent')?.addEventListener('click',()=>{excludeRent=!excludeRent;render()});
   const googleLoginButton=$('#googleLogin');
   if(googleLoginButton&&!googleInfo.configured&&window.financeOne?.isDesktop)googleLoginButton.textContent='Google OAuth 설정 파일 불러오기';
+  $('#googleSetupHelp')?.addEventListener('click',googleSetupDialog);
+  $('#refreshGoogleBackups')?.addEventListener('click',()=>loadGoogleBackups());
+  $$('[data-restore-backup]').forEach(button=>button.onclick=()=>confirmDialog({title:'Drive 백업 복원',message:'현재 기기의 데이터를 선택한 백업으로 교체합니다.',details:['복원 전에 현재 데이터를 로컬 파일로 내보내는 것을 권장합니다.'],confirmText:'복원',danger:true,onConfirm:async()=>{try{const file=googleBackups.find(x=>x.id===button.dataset.restoreBackup);await restoreGoogleBackupFile(file);toast('선택한 Drive 백업을 복원했습니다.')}catch(error){handleGoogleError(error)}}}));
+  $$('[data-delete-backup]').forEach(button=>button.onclick=()=>confirmDialog({title:'Drive 백업 삭제',message:'선택한 백업을 Google Drive에서 삭제할까요?',details:['삭제한 백업은 앱에서 복구할 수 없습니다.'],confirmText:'삭제',danger:true,onConfirm:async()=>{try{await googleBridge().deleteBackup({fileId:button.dataset.deleteBackup});await loadGoogleBackups();toast('Drive 백업을 삭제했습니다.')}catch(error){handleGoogleError(error)}}}));
   const googleActions=$('.google-sync-card .data-actions');
-  if(googleInfo.connected&&googleActions&&!$('#toggleGoogleAutoSync'))googleActions.insertAdjacentHTML('beforebegin',`<div class="manage-row auto-sync-row"><span><b>자동 Drive 백업</b><small>처음에는 꺼져 있습니다. 직접 켠 뒤에만 자동 업로드됩니다.</small></span><button class="pill" id="toggleGoogleAutoSync">${S.settings.googleAutoSync===true?'켜짐':'꺼짐'}</button></div>`);
+  if(googleInfo.connected&&googleActions&&!$('#toggleGoogleAutoSync'))googleActions.insertAdjacentHTML('beforebegin',`<div class="manage-row auto-sync-row"><span><b>자동 Drive 동기화</b><small>처음에는 꺼져 있습니다. 켜면 변경사항을 올리고, 실행할 때 다른 기기의 최신 데이터를 받습니다.</small></span><button class="pill" id="toggleGoogleAutoSync">${S.settings.googleAutoSync===true?'켜짐':'꺼짐'}</button></div>`);
   $$('[data-page],[data-go]').forEach(b=>b.onclick=()=>{page=b.dataset.page||b.dataset.go;render();window.scrollTo(0,0)});
   $$('[data-month]').forEach(b=>b.onclick=()=>changeMonth(Number(b.dataset.month)));
   $$('[data-quick]').forEach(b=>b.onclick=()=>txModal(null,b.dataset.quick));
@@ -300,11 +348,7 @@ function bind(){
   $$('[data-del-payment]').forEach(b=>b.onclick=()=>deletePayment(b.dataset.delPayment));
   $('#toggleDark')?.addEventListener('click',()=>{S.settings.dark=!S.settings.dark;S.settings.theme=S.settings.dark?'dark':'light';render()});
   $$('.theme-option[data-theme]').forEach(b=>b.onclick=e=>{e.stopPropagation();S.settings.theme=b.dataset.theme;S.settings.dark=['dark','midnight'].includes(b.dataset.theme);render()});
-  const applyFontScale=value=>{S.settings.fontScale=Math.min(140,Math.max(80,Math.round(Number(value)/5)*5));document.documentElement.style.setProperty('--app-font-scale',String(S.settings.fontScale/100));const range=$('#fontScale'),label=$('#fontScaleValue');if(range)range.value=S.settings.fontScale;if(label)label.textContent=S.settings.fontScale+'%';save()};
-  $('#fontScale')?.addEventListener('input',e=>applyFontScale(e.target.value));
-  $('#fontSmaller')?.addEventListener('click',()=>applyFontScale((Number(S.settings.fontScale)||100)-5));
-  $('#fontLarger')?.addEventListener('click',()=>applyFontScale((Number(S.settings.fontScale)||100)+5));
-  $('#toggleGoogleAutoSync')?.addEventListener('click',()=>{S.settings.googleAutoSync=S.settings.googleAutoSync!==true;render();toast(`자동 Drive 백업을 ${S.settings.googleAutoSync?'켰습니다.':'껐습니다.'}`)});
+  $('#toggleGoogleAutoSync')?.addEventListener('click',async()=>{const enabled=!googleAutoEnabled();setGoogleAutoEnabled(enabled);render();toast(`자동 Drive 동기화를 ${enabled?'켰습니다.':'껐습니다.'}`);if(enabled){await loadGoogleBackups({rerender:false});const latest=googleBackups[0],last=Number(localStorage.getItem(GOOGLE_LAST_REMOTE_KEY)||0);if(latest&&(!last||backupTime(latest)>last))offerGoogleRestore(latest);else save()}});
   $('#googleLogin')?.addEventListener('click',async e=>{
     const button=e.currentTarget,bridge=googleBridge();
     if(!bridge?.googleLogin)return toast('이 설치본에는 Google 연동 기능이 없습니다. 최신 버전으로 업데이트하세요.');
@@ -320,42 +364,23 @@ function bind(){
       }
       toast(window.financeOne?.isDesktop?'시스템 브라우저에서 Google 로그인을 완료하세요.':'Google 계정을 선택하고 Drive 접근을 허용하세요.');
       googleInfo=await bridge.googleLogin();
-      S.settings.googleAutoSync=false;
+      setGoogleAutoEnabled(false);
+      localStorage.removeItem(GOOGLE_LAST_REMOTE_KEY);
+      localStorage.removeItem(GOOGLE_FIRST_CHECK_KEY);
       render();
       toast('Google 계정을 연결했습니다. 자동 Drive 백업은 꺼져 있습니다.');
-      try{
-        if(bridge.googleDownload){
-          const result=await bridge.googleDownload();
-          if(result?.state&&validBackup(result.state)){
-            confirmDialog({
-              title:'Drive에 기존 데이터가 있습니다',
-              message:'Google Drive에 저장된 FinanceOne 데이터가 발견되었습니다. 이 기기로 불러올까요?',
-              details:['불러오기를 누르면 현재 화면의 데이터를 Drive 데이터로 교체합니다.','지금은 자동 Drive 백업이 꺼져 있어 새 데이터로 덮어쓰지 않습니다.'],
-              confirmText:'불러오기',
-              danger:false,
-              onConfirm:async()=>{
-                S=result.state;
-                S.settings=S.settings||sample().settings;
-                S.settings.googleAutoSync=false;
-                normalizeAssetPayments();
-                await save();
-                render();
-                toast('Google Drive 데이터를 불러왔습니다.');
-              }
-            });
-          }
-        }
-      }catch(_){}
+      await loadGoogleBackups();
+      if(googleBackups[0])offerGoogleRestore(googleBackups[0]);
     }catch(error){
       button.disabled=false;
-      toast(String(error.message||error).replace(/^Error invoking remote method '[^']+':\s*/,''));
+      handleGoogleError(error);
     }
   });
-  $('#googleUpload')?.addEventListener('click',async e=>{const button=e.currentTarget,bridge=googleBridge();button.disabled=true;toast('Google Drive에 저장 중입니다.');try{await save();await bridge.googleUpload(S);localStorage.setItem('financeone_google_last_upload',String(Date.now()));button.disabled=false;toast('현재 데이터를 Google Drive에 저장했습니다.')}catch(error){button.disabled=false;toast(String(error.message||error).replace(/^Error invoking remote method '[^']+':\s*/,''))}});
-  $('#googleDownload')?.addEventListener('click',e=>{const button=e.currentTarget,bridge=googleBridge();confirmDialog({title:'Drive 데이터 불러오기',message:'현재 기기의 데이터를 Google Drive 데이터로 교체합니다.',details:['현재 데이터는 먼저 Drive에 저장하거나 백업 파일로 보관하는 것을 권장합니다.'],confirmText:'불러오기',danger:true,onConfirm:async()=>{button.disabled=true;try{const result=await bridge.googleDownload();if(!validBackup(result.state))throw Error('Drive 백업 형식이 올바르지 않거나 손상되었습니다.');S=result.state;S.settings=S.settings||sample().settings;normalizeAssetPayments();await save();render();toast('Google Drive 데이터를 불러왔습니다.')}catch(error){button.disabled=false;toast(String(error.message||error).replace(/^Error invoking remote method '[^']+':\s*/,''))}}})});
-  $('#googleDisconnect')?.addEventListener('click',e=>{const button=e.currentTarget,bridge=googleBridge();confirmDialog({title:'Google 연결 해제',message:'Google 계정 연결을 해제할까요?',details:['Drive에 저장된 FinanceOne 데이터는 삭제되지 않습니다.'],confirmText:'연결 해제',danger:true,onConfirm:async()=>{button.disabled=true;try{googleInfo=await bridge.googleDisconnect();render();toast('Google 연결을 해제했습니다.')}catch(error){button.disabled=false;toast(String(error.message||error).replace(/^Error invoking remote method '[^']+':\s*/,''))}}})});
+  $('#googleUpload')?.addEventListener('click',async e=>{const button=e.currentTarget,bridge=googleBridge();button.disabled=true;toast('Google Drive에 저장 중입니다.');try{await save();const result=await bridge.googleUpload(S);const when=result?.lastBackupTime||new Date().toISOString();localStorage.setItem('financeone_google_last_upload',when);markRemoteSynced(when);googleInfo.lastBackupTime=when;button.disabled=false;await loadGoogleBackups();toast('현재 데이터를 Google Drive에 백업했습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}});
+  $('#googleDownload')?.addEventListener('click',e=>{const button=e.currentTarget,bridge=googleBridge();confirmDialog({title:'Drive 데이터 불러오기',message:'현재 기기의 데이터를 Google Drive 데이터로 교체합니다.',details:['현재 데이터는 먼저 Drive에 저장하거나 백업 파일로 보관하는 것을 권장합니다.'],confirmText:'불러오기',danger:true,onConfirm:async()=>{button.disabled=true;try{const result=await bridge.googleDownload();if(!validBackup(result.state))throw Error('Drive 백업 형식이 올바르지 않거나 손상되었습니다.');S=result.state;S.settings=S.settings||sample().settings;normalizeAssetPayments();await save();render();toast('Google Drive 데이터를 불러왔습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}}})});
+  $('#googleDisconnect')?.addEventListener('click',e=>{const button=e.currentTarget,bridge=googleBridge();confirmDialog({title:'Google 연결 해제',message:'Google 계정 연결을 해제할까요?',details:['Drive에 저장된 FinanceOne 데이터는 삭제되지 않습니다.'],confirmText:'연결 해제',danger:true,onConfirm:async()=>{button.disabled=true;try{googleInfo=await bridge.googleDisconnect();googleBackups=[];render();toast('Google 연결을 해제했습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}}})});
   $('#exportCsv')?.addEventListener('click',exportCsv);
-  $('#exportData')?.addEventListener('click',exportData);$('#importData')?.addEventListener('change',importData);$('#importDataButton')?.addEventListener('click',()=>{const bridge=googleBridge();if(bridge?.importBackup)importData();else $('#importData')?.click();});
+  $$('#exportData').forEach(button=>button.addEventListener('click',exportData));$('#importData')?.addEventListener('change',importData);$$('#importDataButton').forEach(button=>button.addEventListener('click',()=>{const bridge=googleBridge();if(bridge?.importBackup)importData();else $('#importData')?.click();}));
   $('#resetData')?.addEventListener('click',()=>confirmDialog({title:'모든 데이터 초기화',message:'거래·자산·카테고리·예산을 모두 삭제합니다.',details:['이 작업은 되돌릴 수 없습니다.'],confirmText:'전체 초기화',danger:true,onConfirm:()=>{S=sample();normalizeAssetPayments();render();toast('초기화했습니다')}}));
 }
 function remove(key,id,label){confirmDialog({title:`${label} 삭제`,message:`선택한 ${label}을(를) 삭제할까요?`,details:['이 작업은 되돌릴 수 없습니다.'],confirmText:'삭제',danger:true,onConfirm:()=>{S[key]=S[key].filter(x=>x.id!==id);render();toast(`${label} 삭제 완료`)}})}
@@ -416,7 +441,7 @@ function txModal(id=null,type='지출'){
   $('#saveModal').onclick=()=>{const originalAmount=Math.abs(num($('#txAmount').value)),splitCount=Math.max(1,Math.trunc(Number($('#txSplitCount').value)||1)),amount=Math.floor(originalAmount/splitCount),kind=id?x.type:$('#txType').value,date=$('#txDate').value,title=$('#txTitle').value.trim();if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return toast('거래 날짜를 입력하세요.');if(!title||!originalAmount)return toast('내용과 금액을 입력하세요.');if(!amount)return toast('N빵 후 금액이 1원 이상이어야 합니다.');let section=$('#txSection').value,item=$('#txItem').value;const area=kind;const assetId=$('#txAssetUnified').value;const c=cat(area,section,item);const signed=kind==='수입'?Math.abs(amount):-Math.abs(amount);const n={...x,date,type:kind,area,section,item,title,amount:signed,originalAmount,splitCount,paymentId:assetId,accountId:assetId,memo:$('#txMemo').value,icon:c.icon};if(id)S.transactions[S.transactions.findIndex(v=>v.id===id)]=n;else{S.transactions.push(n);lastTransactionDate=date}lastTransactionCategory[kind]={section,item};selectedMonth=date.slice(0,7);txFilter='전체';page='transactions';closeModal();render();toast(splitCount>1?`${splitCount}N빵으로 ${money(amount)}을 반영했습니다.`:'거래를 저장했습니다.')}
 }
 function dayModal(day){const key=`${selectedMonth}-${pad(day)}`,list=S.transactions.filter(x=>x.date===key);$('#modal').innerHTML=modal(`${Number(selectedMonth.slice(5))}월 ${day}일 거래`,list.length?list.map(txLine).join(''):empty('이 날짜의 거래가 없습니다.'),'거래 추가');modalBase();$('#saveModal').onclick=()=>{closeModal();txModal(null,'지출');$('#txDate').value=key;lastTransactionDate=key}}
-function budgetModal(id=null){normalizeBudgets();const existing=S.budgets.find(x=>x.id===id),defaultArea='지출',defaultSection=sections(defaultArea)[0]||'';const b=existing||{id:uid(),area:defaultArea,section:defaultSection,amount:0};$('#modal').innerHTML=modal(id?'예산 수정':'예산 추가',`<div class="field"><label>큰 분류</label><div class="budget-category-pair"><select id="buArea">${selectOptions(areas(),b.area)}</select><select id="buSection">${selectOptions(sections(b.area),b.section)}</select></div><small class="field-help">식비·교통 같은 큰 분류 자체에 월 예산을 지정합니다.</small></div><div class="field section-gap"><label>월 예산</label><input id="buAmount" inputmode="numeric" value="${b.amount||''}"></div>`);modalBase();const area=$('#buArea'),section=$('#buSection');area.onchange=()=>{section.innerHTML=selectOptions(sections(area.value),sections(area.value)[0]||'')};$('#saveModal').onclick=()=>{const n={...b,area:area.value,section:section.value,amount:num($('#buAmount').value)};if(!n.section)return toast('큰 분류를 선택하세요.');if(!n.amount)return toast('예산 금액을 입력하세요.');const duplicate=S.budgets.find(x=>x.id!==id&&x.area===n.area&&x.section===n.section);if(duplicate)return toast('이미 예산이 등록된 큰 분류입니다.');if(id)S.budgets[S.budgets.findIndex(x=>x.id===id)]=n;else S.budgets.push(n);closeModal();render()}}
+function budgetModal(id=null){const b=S.budgets.find(x=>x.id===id)||{id:uid(),area:'지출',section:sections('지출')[0],item:items('지출',sections('지출')[0])[0]?.item,amount:0};$('#modal').innerHTML=modal(id?'예산 수정':'예산 추가',`<div class="field"><label>영역 / 분류 / 항목</label><div class="triple">${categorySelects('bu',b.area,b.section,b.item)}</div></div><div class="field section-gap"><label>월 예산</label><input id="buAmount" value="${b.amount||''}"></div>`);modalBase();$('#saveModal').onclick=()=>{const n={...b,area:$('#buArea').value,section:$('#buSection').value,item:$('#buItem').value,amount:num($('#buAmount').value)};if(!n.amount)return toast('예산 금액을 입력하세요.');if(id)S.budgets[S.budgets.findIndex(x=>x.id===id)]=n;else S.budgets.push(n);closeModal();render()}}
 function subModal(id=null){const assets=S.accounts.filter(x=>x.paymentEnabled||x.trackBalance!==false),s=S.subscriptions.find(x=>x.id===id)||{id:uid(),service:'',category:'OTT',price:0,day:1,paymentId:assets[0]?.id,accountId:assets[0]?.id,active:true};const selected=s.paymentId||s.accountId||assets[0]?.id;$('#modal').innerHTML=modal(id?'구독 수정':'구독 추가',`<div class="modal-grid"><div class="field"><label>서비스명</label><input id="subService" value="${esc(s.service)}"></div><div class="field"><label>종류</label><input id="subCategory" value="${esc(s.category)}" placeholder="OTT, AI, 음악 등"></div><div class="field"><label>월 요금</label><input id="subPrice" value="${s.price||''}"></div><div class="field"><label>결제일</label><input id="subDay" type="number" min="1" max="31" value="${s.day}"></div><div class="field wide"><label>자산</label><select id="subAsset">${selectOptions(assets,selected,a=>`${a.paymentIcon||'⌂'} ${a.name}`)}</select><small class="field-help">구독 결제에 사용할 자산입니다. 자산 반영을 켠 자산은 잔액도 같이 반영됩니다.</small></div></div>`);modalBase();$('#saveModal').onclick=()=>{const assetId=$('#subAsset').value;const n={...s,service:$('#subService').value.trim(),category:$('#subCategory').value.trim(),price:num($('#subPrice').value),day:Math.min(31,Math.max(1,num($('#subDay').value))),paymentId:assetId,accountId:assetId};if(!n.service||!n.price)return toast('서비스명과 요금을 입력하세요.');if(id)S.subscriptions[S.subscriptions.findIndex(x=>x.id===id)]=n;else S.subscriptions.push(n);closeModal();render()}}
 function accountModal(id=null){const a=S.accounts.find(x=>x.id===id)||{id:uid(),type:'입출금',name:'',opening:0,trackBalance:true,paymentEnabled:false,paymentIcon:'💳',paymentColor:'#2966ff'};const current=id?balance(a):0;$('#modal').innerHTML=modal(id?'자산 수정':'자산 추가',`<div class="modal-grid"><div class="field"><label>유형</label><select id="accType">${selectOptions(['입출금','예금','적금','투자','현금','카드','전자지갑','자산','기타'],a.type)}</select></div><div class="field"><label>자산명</label><input id="accName" value="${esc(a.name)}" placeholder="예: 우리은행 입출금통장"></div><div class="field wide"><label>현재 잔액</label><input id="accCurrent" inputmode="numeric" value="${current}"><small class="field-help">지금 실제로 가진 금액을 입력하면 저장 후 이 금액과 정확히 같아집니다. 예: 540000 입력 → 현재 잔액 540,000원</small></div><div class="field wide asset-switches"><label class="switch-field"><input id="accTrack" type="checkbox" ${a.trackBalance!==false?'checked':''}><span><b>총자산에 반영</b><small>계좌·현금·투자처럼 총자산에 포함합니다.</small></span></label><label class="switch-field"><input id="accPayment" type="checkbox" ${a.paymentEnabled?'checked':''}><span><b>거래에 사용</b><small>체크하면 거래·구독의 자산 목록에 표시됩니다.</small></span></label></div><div class="field"><label>자산 아이콘</label><input id="accPayIcon" value="${esc(a.paymentIcon||'💳')}" maxlength="4"></div><div class="field"><label>표시 색상</label><input id="accPayColor" type="color" value="${a.paymentColor||'#2966ff'}"></div></div>`);modalBase();$('#accType').onchange=()=>{if($('#accType').value==='자산'){$('#accTrack').checked=false;$('#accPayment').checked=true}};$('#saveModal').onclick=()=>{const paymentEnabled=$('#accPayment').checked;if(id&&a.paymentEnabled&&!paymentEnabled){const linked=paymentDependencies(id);if(linked.length)return dependencyDialog('거래 사용을 끌 수 없습니다.',`${a.name}이(가) 아직 자산으로 사용 중입니다.`,linked)}const desiredCurrent=num($('#accCurrent').value),flow=id?accountFlow(a.id):0;const n={...a,type:$('#accType').value,name:$('#accName').value.trim(),opening:desiredCurrent-flow,trackBalance:$('#accTrack').checked,paymentEnabled,paymentIcon:$('#accPayIcon').value||'💳',paymentColor:$('#accPayColor').value};if(!n.name)return toast('자산 이름을 입력하세요.');if(id)S.accounts[S.accounts.findIndex(x=>x.id===id)]=n;else S.accounts.push(n);closeModal();render();toast(`현재 잔액을 ${money(desiredCurrent)}으로 맞췄습니다.`)}}
 function assetDependencies(id){return[{label:'거래에 사용된 자산',count:S.transactions.filter(x=>x.accountId===id||x.paymentId===id).length},{label:'이체 도착 자산',count:S.transactions.filter(x=>x.targetAccountId===id).length},{label:'정기구독에 사용된 자산',count:S.subscriptions.filter(x=>x.accountId===id||x.paymentId===id).length}].filter(x=>x.count)}
@@ -493,9 +518,12 @@ async function initialize(){
       googleInfo=await window.financeOne.googleStatus();
       const legacy=JSON.parse(localStorage.getItem('financeone_v5')||'null');
       S=stored||legacy||sample();
+      hadLocalData=!!(stored||legacy);
       normalizeAssetPayments();normalizeTransactions();
     }else{
-      S=JSON.parse(localStorage.getItem('financeone_v5')||'null')||sample();
+      const stored=JSON.parse(localStorage.getItem('financeone_v5')||'null');
+      S=stored||sample();
+      hadLocalData=!!stored;
       normalizeAssetPayments();normalizeTransactions();
       const bridge=googleBridge();
       if(bridge?.googleStatus)googleInfo=await bridge.googleStatus();
@@ -504,8 +532,12 @@ async function initialize(){
     console.error(error);
     S=sample();
   }
+  if(localStorage.getItem(GOOGLE_AUTO_KEY)==null)localStorage.setItem(GOOGLE_AUTO_KEY,hadLocalData&&S.settings?.googleAutoSync===true?'1':'0');
+  applyGoogleAutoPreference();
+  if(googleInfo.connected)await loadGoogleBackups({rerender:false});
   render();
   appReady=true;
+  await checkGoogleRemoteOnStart();
 }
 
 initialize();

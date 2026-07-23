@@ -64,39 +64,30 @@ button, select, input, textarea { user-select:auto; }
  #app[data-page="food"] .hint,#app[data-page="food"] small{font-size:14px}
 }
 
-/* v1.7.8 / v1.4.8: budget hierarchy, compact recent transactions, font scaling */
-:root{--app-font-scale:1;font-size:calc(16px * var(--app-font-scale))}
-body{font-size:1rem}
-.budget-hierarchy{table-layout:fixed;min-width:980px}
-.budget-hierarchy col:nth-child(1){width:28%}
-.budget-hierarchy col:nth-child(2),.budget-hierarchy col:nth-child(3),.budget-hierarchy col:nth-child(4){width:15%}
-.budget-hierarchy col:nth-child(5){width:17%}
-.budget-hierarchy col:nth-child(6){width:10%}
-.budget-hierarchy th,.budget-hierarchy td{vertical-align:middle}
-.budget-section-row td,.budget-item-row td{height:58px}
-.budget-section-row td:first-child,.budget-item-row td:first-child{padding-left:14px}
-.budget-parent-actions{white-space:nowrap;text-align:right}
-.budget-detail-dash{color:var(--muted)}
-.budget-empty-detail td{text-align:center;color:var(--muted)}
-.budget-category-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.compact-tx{grid-template-columns:auto minmax(0,1fr) auto!important;column-gap:12px!important}
-.compact-tx .tx-copy{min-width:0}
-.compact-tx .tx-meta-row{display:block}
-.compact-tx .tx-amount-cluster{display:flex;align-items:center;justify-content:flex-end;gap:7px;min-width:max-content;margin-left:8px}
-.compact-tx .tx-inline-actions{display:flex;gap:4px;flex:0 0 auto}
-.compact-tx .tx-inline-actions button{margin:0!important}
-.compact-tx .tx-amount-cluster strong{white-space:nowrap;text-align:right}
-.font-scale-row{align-items:center;gap:18px}
-.font-scale-row>span{display:flex;flex-direction:column;gap:3px}
-.font-scale-row small{color:var(--muted)}
-.font-scale-control{display:grid;grid-template-columns:auto minmax(110px,1fr) auto 52px;align-items:center;gap:8px;min-width:min(340px,100%)}
-.font-scale-control .pill{padding:7px 11px}
-.font-scale-control input{width:100%}
-.font-scale-control>b{text-align:right}
-@media(max-width:700px){
- .font-scale-row{align-items:stretch;flex-direction:column}
- .font-scale-control{min-width:0;width:100%}
- .compact-tx{column-gap:8px!important}
- .compact-tx .tx-amount-cluster{gap:4px;margin-left:2px}
- .compact-tx .tx-inline-actions button{padding:5px 7px}
+/* v1.4.9 Google Drive backup controls */
+#toast{max-width:min(440px,calc(100vw - 32px));line-height:1.45;overflow-wrap:anywhere}
+.oauth-help-inline{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-top:12px;color:var(--muted);font-size:13px}
+.google-backup-summary{margin:8px 0 14px}
+.drive-backup-list{margin-top:18px;border-top:1px solid var(--line);padding-top:16px}
+.drive-backup-list h4{margin:0;font-size:15px}
+.drive-backup-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.drive-backup-row:last-child{border-bottom:0}
+.drive-backup-row>div:first-child{display:grid;gap:4px;min-width:0}
+.drive-backup-row b{font-size:14px;overflow-wrap:anywhere}
+.drive-backup-row span{font-size:12px;color:var(--muted)}
+.drive-backup-row>div:last-child{display:flex;gap:7px;flex:0 0 auto}
+.drive-backup-row .pill{padding:8px 11px}
+.drive-empty{margin:14px 0 0}
+.google-help-box{max-height:min(760px,88vh);overflow:auto}
+.oauth-values{display:grid;grid-template-columns:90px minmax(0,1fr) 60px;gap:9px;align-items:center;margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--bg)}
+.oauth-values label{font-size:12px;font-weight:900;color:var(--muted)}
+.oauth-values code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;line-height:1.5;overflow-wrap:anywhere;white-space:normal}
+.oauth-values button{height:34px;border:1px solid var(--line);border-radius:9px;background:var(--card);font-weight:800;color:var(--text)}
+.google-help-box ol{padding-left:22px;color:var(--muted);line-height:1.7}
+@media(max-width:600px){
+  .drive-backup-row{align-items:stretch;flex-direction:column}
+  .drive-backup-row>div:last-child{display:grid;grid-template-columns:1fr 1fr}
+  .oauth-values{grid-template-columns:1fr 58px}
+  .oauth-values label{grid-column:1/-1;margin-top:4px}
+  .google-help-box .modal-actions{display:grid;grid-template-columns:1fr 1fr}
 }

@@ -1,0 +1,13 @@
+FinanceOne Mobile v1.4.8
+
+- 모바일 하단 설정 메뉴 복구
+- Google 계정 연결용 네이티브 FinanceOneGoogle 플러그인 복구
+- Google Drive appDataFolder 업로드/다운로드 복구
+- 로컬 JSON 백업 저장/복원 유지
+- 정식 Capacitor Android APK 빌드 복구
+- Android 36 / Java 17 호환 빌드 조정
+
+주의:
+기존 v1.3.0 APK는 SHA-1 B0:D7:8B:6D:E5:FE:72:52:DD:24:00:55:3B:1B:B4:2D:D5:F1:67:7B로 서명되었습니다.
+현재 빌드 키 SHA-1은 A7:BF:F7:D3:1F:83:0B:30:39:07:A0:F9:05:43:CA:8E:C5:05:55:6A입니다.
+Google Cloud Android OAuth Client에 현재 SHA-1도 등록해야 Google 인증이 허용됩니다.

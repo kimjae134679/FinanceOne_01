@@ -1,0 +1,16 @@
+FinanceOne Mobile v1.4.9 변경사항
+
+- 모바일 하단 메뉴에 설정 탭 유지 및 작은 화면 잘림 보정
+- Google 계정 연결 오류 메시지를 짧게 표시하고 별도 해결 안내 화면 제공
+- 실제 설치 APK의 패키지명과 서명 SHA-1을 앱에서 확인·복사 가능
+- Google Drive appDataFolder 백업 목록, 선택 복원, 삭제, 최근 백업 시각 추가
+- 인증 토큰 만료(401) 시 토큰 갱신 후 한 번 재시도
+- 로컬 JSON 내보내기·가져오기 접근 경로 유지
+- FinanceOne 전용 앱 아이콘 적용
+- 기존 FinanceOne Android OAuth 등록과 동일한 원래 인증서로 APK 서명
+- OAuth 비밀정보와 키스토어를 프로젝트 및 APK에 포함하지 않음
+
+주의
+- Google 로그인은 Google Cloud Android OAuth 클라이언트에
+  패키지명 com.financeone.mobile 과 실제 APK SHA-1이 등록돼야 동작합니다.
+- 자세한 순서는 GOOGLE_OAUTH_SETUP_v1.4.9_KO.txt를 확인하세요.

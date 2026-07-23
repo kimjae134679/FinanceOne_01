@@ -209,15 +209,16 @@
   .food-save-row,.data-actions{margin-bottom:18px;}
 }
 
-/* v1.3.9: reliable mobile bottom navigation */
+/* v1.4.7: keep every essential mobile destination directly accessible */
 @media(max-width:900px){
-  .sidebar nav{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;overflow:visible!important}
+  .sidebar nav{display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;overflow:visible!important}
   .sidebar nav button{display:none!important}
   .sidebar nav button[data-page="dashboard"],
   .sidebar nav button[data-page="transactions"],
-  .sidebar nav button[data-page="food"],
   .sidebar nav button[data-page="analysis"],
-  .sidebar nav button[data-page="more"]{
+  .sidebar nav button[data-page="food"],
+  .sidebar nav button[data-page="assets"],
+  .sidebar nav button[data-page="settings"]{
     display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;
     width:auto!important;min-width:0!important;height:58px!important;font-size:0!important
   }
@@ -225,7 +226,8 @@
   .sidebar nav button[data-page]::after{font-size:10px!important;line-height:1!important;font-weight:800!important}
   .sidebar nav button[data-page="dashboard"]::before{content:"⌂"!important}.sidebar nav button[data-page="dashboard"]::after{content:"홈"!important}
   .sidebar nav button[data-page="transactions"]::before{content:"▤"!important}.sidebar nav button[data-page="transactions"]::after{content:"거래"!important}
-  .sidebar nav button[data-page="food"]::before{content:"🍴"!important}.sidebar nav button[data-page="food"]::after{content:"식비"!important}
   .sidebar nav button[data-page="analysis"]::before{content:"▥"!important}.sidebar nav button[data-page="analysis"]::after{content:"통계"!important}
-  .sidebar nav button[data-page="more"]::before{content:"☰"!important}.sidebar nav button[data-page="more"]::after{content:"전체"!important}
+  .sidebar nav button[data-page="food"]::before{content:"🍴"!important}.sidebar nav button[data-page="food"]::after{content:"식비"!important}
+  .sidebar nav button[data-page="assets"]::before{content:"⌂"!important}.sidebar nav button[data-page="assets"]::after{content:"자산"!important}
+  .sidebar nav button[data-page="settings"]::before{content:"⚙"!important}.sidebar nav button[data-page="settings"]::after{content:"설정"!important}
 }

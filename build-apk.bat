@@ -57,10 +57,10 @@ if not exist "%APK%" (
   exit /b 1
 )
 
-copy /y "%APK%" "FinanceOne-Mobile-v1.4.6-debug.apk" >nul
+copy /y "%APK%" "FinanceOne-Mobile-v1.4.7-debug.apk" >nul
 echo [4/4] Finished.
 echo.
-echo APK: %CD%\FinanceOne-Mobile-v1.4.6-debug.apk
+echo APK: %CD%\FinanceOne-Mobile-v1.4.7-debug.apk
 echo.
 echo If Android says the app cannot be installed, uninstall the older
  echo FinanceOne app first only after exporting a backup. A different

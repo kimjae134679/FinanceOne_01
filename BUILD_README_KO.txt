@@ -1,4 +1,4 @@
-FinanceOne 모바일 APK 빌드 프로젝트 v1.4.6
+FinanceOne 모바일 APK 빌드 프로젝트 v1.4.7
 
 준비물
 1. Android Studio 설치
@@ -9,7 +9,7 @@ FinanceOne 모바일 APK 빌드 프로젝트 v1.4.6
 빌드 방법
 1. 이 폴더의 build-apk.bat 실행
 2. 최초 실행은 npm/Gradle 의존성을 내려받으므로 인터넷 연결 필요
-3. 성공하면 프로젝트 최상위에 FinanceOne-Mobile-v1.4.6-debug.apk 생성
+3. 성공하면 프로젝트 최상위에 FinanceOne-Mobile-v1.4.7-debug.apk 생성
 
 Android Studio 방식
 1. android 폴더를 Android Studio에서 열기
