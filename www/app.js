@@ -342,8 +342,6 @@ const pages={dashboard,transactions,analysis:analysisPage,budget,subscriptions,f
 function render(){syncSubscriptions();ensureStocks();applyGoogleAutoPreference();const chosen=S.settings.theme||(S.settings.dark?'dark':'light'),resolved=chosen==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):chosen;document.documentElement.dataset.theme=resolved;document.documentElement.classList.toggle('dark',['dark','midnight'].includes(resolved));side();$('#app').dataset.page=page;$('#app').innerHTML=pages[page]();const secondary=['budget','subscriptions','food','assets','stocks','settings'];$$('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===page||(b.dataset.page==='more'&&secondary.includes(page))));bind();if(appReady)save()}
 function bind(){
   $('#toggleRent')?.addEventListener('click',()=>{excludeRent=!excludeRent;render()});
-  const googleLoginButton=$('#googleLogin');
-  if(googleLoginButton&&!googleInfo.configured&&window.financeOne?.isDesktop)googleLoginButton.textContent='Google OAuth 설정 파일 불러오기';
   $('#googleSetupHelp')?.addEventListener('click',googleSetupDialog);
   $('#refreshGoogleBackups')?.addEventListener('click',()=>loadGoogleBackups());
   $$('[data-restore-backup]').forEach(button=>button.onclick=()=>confirmDialog({title:'Drive 백업 복원',message:'현재 기기의 데이터를 선택한 백업으로 교체합니다.',details:['복원 전에 현재 데이터를 로컬 파일로 내보내는 것을 권장합니다.'],confirmText:'복원',danger:true,onConfirm:async()=>{try{const file=googleBackups.find(x=>x.id===button.dataset.restoreBackup);await restoreGoogleBackupFile(file);toast('선택한 Drive 백업을 복원했습니다.')}catch(error){handleGoogleError(error)}}}));
@@ -402,14 +400,6 @@ function bind(){
     if(!bridge?.googleLogin)return toast('이 설치본에는 Google 연동 기능이 없습니다. 최신 버전으로 업데이트하세요.');
     button.disabled=true;
     try{
-      if(!googleInfo.configured&&bridge.googleImportConfig){
-        const result=await bridge.googleImportConfig();
-        if(result.canceled){button.disabled=false;return}
-        googleInfo=await bridge.googleStatus();
-        render();
-        toast('OAuth 설정 파일을 불러왔습니다. 이제 Google 계정을 연결하세요.');
-        return;
-      }
       toast(window.financeOne?.isDesktop?'시스템 브라우저에서 Google 로그인을 완료하세요.':'Google 계정을 선택하고 Drive 접근을 허용하세요.');
       googleInfo=await bridge.googleLogin();
       setGoogleAutoEnabled(false);
