@@ -7,14 +7,14 @@
 
 .food-independent-note{margin:14px 0;padding:12px 15px;border:1px solid color-mix(in srgb,var(--blue) 25%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--blue) 6%,var(--card));color:var(--muted);font-size:13px;font-weight:700}
 .food-tabs{margin:14px 0;display:flex;gap:8px;overflow-x:auto}.food-tabs button{min-width:110px;white-space:nowrap}
-.food-purchase-form{grid-template-columns:1fr 1.4fr 1fr 1fr 1fr 1fr}.food-purchase-form .food-memo{grid-column:span 2}
+.food-purchase-form{grid-template-columns:1fr 1.4fr 1fr 1fr 1.8fr}.food-purchase-form .food-memo{grid-column:auto}
 .food-inventory-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:14px}
 .food-purchase-card{padding:17px;border:1px solid var(--line);border-radius:15px;background:var(--card);box-shadow:0 4px 16px rgba(20,40,80,.05)}
 .food-purchase-card.finished{opacity:.76;background:color-mix(in srgb,var(--card) 90%,var(--bg))}
 .food-purchase-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.food-purchase-head span,.food-purchase-meta,.food-remain span,.food-card-foot{color:var(--muted);font-size:12px}.food-purchase-head h4{margin:5px 0 0;font-size:19px}.food-purchase-head strong{white-space:nowrap;color:var(--blue)}
 .food-purchase-meta{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px}.food-progress{height:8px;margin:13px 0 8px;border-radius:99px;background:var(--bg);overflow:hidden}.food-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#42bd73,#2966ff)}
 .food-remain{display:flex;align-items:center;justify-content:space-between;gap:12px}.food-remain b{font-size:13px}
-.food-consume-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px}.food-consume-actions button{min-height:38px;padding:7px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);font-weight:800}.food-consume-actions button:hover{border-color:var(--blue)}.food-consume-actions .primary-mini{background:var(--blue);color:#fff;border-color:var(--blue)}
+.food-consume-actions{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-top:14px}.food-consume-actions button{min-height:38px;padding:7px;border:1px solid var(--line);border-radius:9px;background:var(--bg);color:var(--text);font-weight:800}.food-consume-actions button:hover{border-color:var(--blue)}.food-consume-actions .primary-mini{background:var(--blue);color:#fff;border-color:var(--blue)}
 .food-card-foot{display:flex;align-items:center;gap:8px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}.food-card-foot span{margin-right:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.food-card-foot button{border:0;background:transparent;color:var(--blue);font-weight:800}
 .food-price-groups{display:grid;gap:16px;margin-top:14px}.food-price-group{padding:15px;border:1px solid var(--line);border-radius:14px}.food-price-group>div:first-child{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}.food-price-group h4{margin:0}.food-price-group>div>span{color:var(--green);font-size:13px;font-weight:800}.best-price{background:color-mix(in srgb,#42bd73 7%,var(--card))}
 

@@ -231,3 +231,9 @@
   .sidebar nav button[data-page="assets"]::before{content:"⌂"!important}.sidebar nav button[data-page="assets"]::after{content:"자산"!important}
   .sidebar nav button[data-page="settings"]::before{content:"⚙"!important}.sidebar nav button[data-page="settings"]::after{content:"설정"!important}
 }
+
+/* v1.6.2: action buttons stay after the final field instead of floating mid-form */
+@media(max-width:900px){
+  .modalbox{padding-bottom:calc(24px + env(safe-area-inset-bottom))!important}
+  .modal-actions{position:static!important;bottom:auto!important;margin:20px 0 0!important;padding:14px 0 0!important;border-top:1px solid var(--line)!important;background:var(--card)!important}
+}
