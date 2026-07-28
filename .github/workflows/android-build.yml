@@ -55,7 +55,7 @@ jobs:
       - name: 설치 검증 APK 저장
         uses: actions/upload-artifact@v4
         with:
-          name: FinanceOne-v1.6.5-install-verified
+          name: FinanceOne-v1.6.6-install-verified
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
