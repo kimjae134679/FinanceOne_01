@@ -73,12 +73,20 @@ function setGoogleAutoEnabled(enabled){localStorage.setItem(GOOGLE_AUTO_KEY,enab
 function applyGoogleAutoPreference(){S.settings=S.settings||sample().settings;S.settings.googleAutoSync=googleAutoEnabled()}
 const backupTime=file=>new Date(file?.modifiedTime||file?.createdTime||0).getTime()||0;
 function markRemoteSynced(value){const time=typeof value==='number'?value:new Date(value||Date.now()).getTime();localStorage.setItem(GOOGLE_LAST_REMOTE_KEY,String(time||Date.now()))}
+function recordGoogleUpload(result){
+  const when=result?.modifiedTime||result?.lastBackupTime||new Date().toISOString();
+  localStorage.setItem('financeone_google_last_upload',when);
+  markRemoteSynced(when);
+  googleInfo.lastBackupTime=when;
+  return when;
+}
+window.financeOne?.onGoogleAutoUploaded?.(recordGoogleUpload);
 function scheduleMobileGoogleSync(){
   const bridge=googleBridge();
   if(suppressGoogleUpload||window.financeOne?.isDesktop||!bridge?.googleUpload||!googleInfo.connected||!googleAutoEnabled())return;
   mobilePendingState=JSON.parse(JSON.stringify(S));
   clearTimeout(mobileSyncTimer);
-  mobileSyncTimer=setTimeout(async()=>{const state=mobilePendingState;mobilePendingState=null;try{if(state){const result=await bridge.googleUpload(state),when=result?.lastBackupTime||new Date().toISOString();localStorage.setItem('financeone_google_last_upload',when);markRemoteSynced(when)}}catch(error){console.warn('Mobile Google auto sync failed',error)}},30000);
+  mobileSyncTimer=setTimeout(async()=>{const state=mobilePendingState;mobilePendingState=null;try{if(state)recordGoogleUpload(await bridge.googleUpload(state))}catch(error){console.warn('Mobile Google auto sync failed',error)}},30000);
 }
 const save=()=>window.financeOne?.isDesktop
   ? window.financeOne.save(S).catch(()=>toast('SQLite 저장에 실패했습니다.'))
@@ -102,9 +110,9 @@ function handleGoogleError(error){
 }
 async function loadGoogleBackups({rerender=true}={}){
   const bridge=googleBridge();
-  if(!googleInfo.connected||!bridge?.listBackups){googleBackups=[];if(rerender)render();return}
-  try{const result=await bridge.listBackups();googleBackups=Array.isArray(result?.files)?result.files:[];if(result?.lastBackupTime)googleInfo.lastBackupTime=result.lastBackupTime;if(rerender)render()}
-  catch(error){handleGoogleError(error)}
+  if(!googleInfo.connected||!bridge?.listBackups){googleBackups=[];if(rerender)render();return false}
+  try{const result=await bridge.listBackups();googleBackups=Array.isArray(result?.files)?result.files:[];if(result?.lastBackupTime)googleInfo.lastBackupTime=result.lastBackupTime;if(rerender)render();return true}
+  catch(error){handleGoogleError(error);return false}
 }
 async function restoreGoogleBackupFile(file,{silent=false}={}){
   const bridge=googleBridge();
@@ -122,11 +130,11 @@ async function restoreGoogleBackupFile(file,{silent=false}={}){
   if(!silent)toast('Google Drive 데이터를 불러왔습니다.');
   return true;
 }
-function offerGoogleRestore(file){
+function offerGoogleRestore(file,{enableAutoOnRestore=false}={}){
   if(!file)return;
   localStorage.setItem(GOOGLE_FIRST_CHECK_KEY,'1');
-  markRemoteSynced(backupTime(file));
-  confirmDialog({title:'Drive에 기존 데이터가 있습니다',message:'Google Drive에 저장된 FinanceOne 데이터를 이 기기로 불러올까요?',details:['불러오기를 누르면 현재 데이터를 Drive 데이터로 교체합니다.','자동 백업은 직접 켜기 전까지 꺼진 상태로 유지됩니다.'],confirmText:'불러오기',danger:false,onConfirm:async()=>{try{await restoreGoogleBackupFile(file)}catch(error){handleGoogleError(error)}}});
+  const details=['불러오기를 누르면 현재 데이터를 Drive 데이터로 교체합니다.',enableAutoOnRestore?'불러온 뒤 자동 Drive 동기화를 켭니다.':'자동 백업은 직접 켜기 전까지 꺼진 상태로 유지됩니다.'];
+  confirmDialog({title:'Drive에 기존 데이터가 있습니다',message:'Google Drive에 저장된 FinanceOne 데이터를 이 기기로 불러올까요?',details,confirmText:enableAutoOnRestore?'불러오고 켜기':'불러오기',danger:false,onConfirm:async()=>{if(enableAutoOnRestore)setGoogleAutoEnabled(true);try{await restoreGoogleBackupFile(file);if(enableAutoOnRestore)toast('Drive 데이터를 받고 자동 동기화를 켰습니다.')}catch(error){if(enableAutoOnRestore){setGoogleAutoEnabled(false);render()}handleGoogleError(error)}}});
 }
 async function checkGoogleRemoteOnStart(){
   if(!googleInfo.connected||!googleBackups.length)return;
@@ -471,7 +479,13 @@ function bind(){
   $$('[data-del-payment]').forEach(b=>b.onclick=()=>deletePayment(b.dataset.delPayment));
   $('#toggleDark')?.addEventListener('click',()=>{S.settings.dark=!S.settings.dark;S.settings.theme=S.settings.dark?'dark':'light';render()});
   $$('.theme-option[data-theme]').forEach(b=>b.onclick=e=>{e.stopPropagation();S.settings.theme=b.dataset.theme;S.settings.dark=['dark','midnight'].includes(b.dataset.theme);render()});
-  $('#toggleGoogleAutoSync')?.addEventListener('click',async()=>{const enabled=!googleAutoEnabled();setGoogleAutoEnabled(enabled);render();toast(`자동 Drive 동기화를 ${enabled?'켰습니다.':'껐습니다.'}`);if(enabled){await loadGoogleBackups({rerender:false});const latest=googleBackups[0],last=Number(localStorage.getItem(GOOGLE_LAST_REMOTE_KEY)||0);if(latest&&(!last||backupTime(latest)>last))offerGoogleRestore(latest);else save()}});
+  $('#toggleGoogleAutoSync')?.addEventListener('click',async()=>{
+    if(googleAutoEnabled()){setGoogleAutoEnabled(false);render();toast('자동 Drive 동기화를 껐습니다.');return}
+    const loaded=await loadGoogleBackups({rerender:false});if(!loaded)return;
+    const latest=googleBackups[0],last=Number(localStorage.getItem(GOOGLE_LAST_REMOTE_KEY)||0);
+    if(latest&&(!last||backupTime(latest)>last)){offerGoogleRestore(latest,{enableAutoOnRestore:true});return}
+    setGoogleAutoEnabled(true);render();toast('자동 Drive 동기화를 켰습니다.');
+  });
   $('#googleLogin')?.addEventListener('click',async e=>{
     const button=e.currentTarget,bridge=googleBridge();
     if(!bridge?.googleLogin)return toast('이 설치본에는 Google 연동 기능이 없습니다. 최신 버전으로 업데이트하세요.');
@@ -491,7 +505,7 @@ function bind(){
       handleGoogleError(error);
     }
   });
-  $('#googleUpload')?.addEventListener('click',async e=>{const button=e.currentTarget,bridge=googleBridge();button.disabled=true;toast('Google Drive에 저장 중입니다.');try{await save();const result=await bridge.googleUpload(S);const when=result?.lastBackupTime||new Date().toISOString();localStorage.setItem('financeone_google_last_upload',when);markRemoteSynced(when);googleInfo.lastBackupTime=when;button.disabled=false;await loadGoogleBackups();toast('현재 데이터를 Google Drive에 백업했습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}});
+  $('#googleUpload')?.addEventListener('click',async e=>{const button=e.currentTarget,bridge=googleBridge();button.disabled=true;toast('Google Drive에 저장 중입니다.');try{await save();clearTimeout(mobileSyncTimer);mobilePendingState=null;recordGoogleUpload(await bridge.googleUpload(S));button.disabled=false;await loadGoogleBackups();toast('현재 데이터를 Google Drive에 백업했습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}});
   $('#googleDownload')?.addEventListener('click',e=>{const button=e.currentTarget,bridge=googleBridge();confirmDialog({title:'Drive 데이터 불러오기',message:'현재 기기의 데이터를 Google Drive 데이터로 교체합니다.',details:['현재 데이터는 먼저 Drive에 저장하거나 백업 파일로 보관하는 것을 권장합니다.'],confirmText:'불러오기',danger:true,onConfirm:async()=>{button.disabled=true;try{const result=await bridge.googleDownload();if(!validBackup(result.state))throw Error('Drive 백업 형식이 올바르지 않거나 손상되었습니다.');S=result.state;S.settings=S.settings||sample().settings;normalizeAssetPayments();normalizeTransactions();normalizeFoodData();await save();render();toast('Google Drive 데이터를 불러왔습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}}})});
   $('#googleDisconnect')?.addEventListener('click',e=>{const button=e.currentTarget,bridge=googleBridge();confirmDialog({title:'Google 연결 해제',message:'Google 계정 연결을 해제할까요?',details:['Drive에 저장된 FinanceOne 데이터는 삭제되지 않습니다.'],confirmText:'연결 해제',danger:true,onConfirm:async()=>{button.disabled=true;try{googleInfo=await bridge.googleDisconnect();googleBackups=[];render();toast('Google 연결을 해제했습니다.')}catch(error){button.disabled=false;handleGoogleError(error)}}})});
   $('#exportCsv')?.addEventListener('click',exportCsv);

@@ -355,16 +355,21 @@ public class FinanceOneGooglePlugin extends Plugin {
             + "\r\n--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + json
             + "\r\n--" + boundary + "--";
         String response = request("POST", "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,createdTime,modifiedTime,size", token, "multipart/related; boundary=" + boundary, body);
-        prefs().edit().putString("lastBackupTime", createdAt).apply();
-        JSObject result = toJSObject(new JSONObject(response));
-        result.put("lastBackupTime", createdAt);
+        JSONObject uploaded = new JSONObject(response);
+        String remoteTime = uploaded.optString("modifiedTime", createdAt);
+        prefs().edit().putString("lastBackupTime", remoteTime).apply();
+        JSObject result = toJSObject(uploaded);
+        result.put("lastBackupTime", remoteTime);
         call.resolve(result);
     }
 
     private void listBackupsInternal(PluginCall call, String token) throws Exception {
         JSObject result = new JSObject();
-        result.put("files", fetchBackups(token));
-        result.put("lastBackupTime", prefs().getString("lastBackupTime", ""));
+        JSONArray files = fetchBackups(token);
+        result.put("files", files);
+        result.put("lastBackupTime", files.length() > 0
+            ? files.getJSONObject(0).optString("modifiedTime", prefs().getString("lastBackupTime", ""))
+            : prefs().getString("lastBackupTime", ""));
         call.resolve(result);
     }
 
