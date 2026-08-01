@@ -68,5 +68,11 @@ if (app.includes("type:'finish'") || app.includes('type:"finish"')) {
 if (!app.includes("purchaseIds.forEach(purchaseId=>")) {
   throw new Error('한 끼에 여러 식재료를 함께 기록하는 처리가 누락되었습니다.');
 }
+if (!app.includes("S.foodPurchases.filter(p=>!foodIsFinished(p)&&foodMatches(p))")) {
+  throw new Error('다 먹은 구매 건이 재고 목록에서 제외되지 않습니다.');
+}
+if (!app.includes("S.foodPurchases.push({id:uid()") || !app.includes("purchaseId,type:'portion'")) {
+  throw new Error('같은 식품 재구매를 독립 구매 ID로 기록하지 않습니다.');
+}
 
 console.log(`PASS: FinanceOne Mobile v${pkg.version} Google 동기화·거래 날짜·모달·식비·버전·캐시 반영 확인`);
