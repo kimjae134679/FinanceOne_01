@@ -1,0 +1,59 @@
+/* v1.7.1 / PC v1.10.0: theme consistency, responsive charts, heat calendar and safe modals */
+.dark{color-scheme:dark}
+.tabs button{color:var(--text)}
+.bar-chart{min-width:0;overflow:hidden}
+.bar-scroll{width:100%;overflow-x:auto;overflow-y:hidden;padding-bottom:8px;scrollbar-gutter:stable;overscroll-behavior-inline:contain}
+.bar-scroll:focus-visible{outline:2px solid var(--blue);outline-offset:3px;border-radius:8px}
+.bar-scroll .bars{width:max(100%,calc(var(--bar-count) * 62px));min-width:100%;overflow:visible}
+.bar-scroll .bar-col{flex:1 0 54px;min-width:54px}
+.calendar-heat-legend{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin:0 0 8px;color:var(--muted);font-size:11px;font-weight:800}
+.calendar-heat-legend i{display:block;width:86px;height:7px;border-radius:99px;background:linear-gradient(90deg,#35b96f,#d7b72b,#e65050)}
+.cal-grid>button.spent{background:color-mix(in srgb,var(--heat-color) var(--heat-mix),var(--card));border-color:color-mix(in srgb,var(--heat-color) 48%,var(--line))}
+.cal-grid>button.spent:hover{background:color-mix(in srgb,var(--heat-color) calc(var(--heat-mix) + 8%),var(--card));border-color:var(--heat-color)}
+.cal-grid>button.spent span{color:var(--text);text-shadow:0 1px 0 color-mix(in srgb,var(--card) 55%,transparent)}
+
+.dark body,.dark #app{background:var(--bg);color:var(--text)}
+.dark .card,.dark .table,.dark .table td,.dark .table tbody,.dark .tx-list-card{color:var(--text)}
+.dark .table th{background:#18283e;color:#b8c5d9}
+.dark .table td{background:transparent}
+.dark .budget-section-row{background:#15243a;color:var(--text)}
+.dark .budget-section-row:hover,.dark .clickable-row:hover,.dark .clickable-row:focus{background:#1b3150}
+.dark .budget-item-row{background:var(--card);color:var(--text)}
+.dark .budget-fold,.dark .tx-copy-btn,.dark .actions button,.dark .account-actions button,.dark .category-copy-btn{background:#18283e!important;border-color:var(--line)!important;color:var(--text)!important}
+.dark .pill,.dark .btn:not(.primary),.dark .tabs,.dark .tabs button,.dark .month-label{background:var(--card);border-color:var(--line);color:var(--text)}
+.dark .tabs button.active,.dark .analysis-choice-list button.active,.dark .stat-list button.active{background:color-mix(in srgb,var(--blue) 22%,var(--card));color:#dce5ff}
+.dark .analysis-path button:hover,.dark .analysis-choice-list button:hover,.dark .stat-list button:hover{background:color-mix(in srgb,var(--blue) 15%,var(--card))}
+.dark .metric h4,.dark .field label,.dark #app[data-page="food"] .field label,.dark .food-analysis-toggle small{color:var(--muted)}
+.dark .soft-blue{background:color-mix(in srgb,var(--blue) 20%,var(--card));color:#aebdff}
+.dark .soft-red{background:color-mix(in srgb,var(--red) 18%,var(--card));color:#ff9dab}
+.dark .soft-green{background:color-mix(in srgb,var(--green) 18%,var(--card));color:#84e4b7}
+.dark .soft-orange{background:color-mix(in srgb,var(--orange) 18%,var(--card));color:#ffd08a}
+.dark .soft-purple{background:color-mix(in srgb,var(--purple) 20%,var(--card));color:#cbb5ff}
+.dark .soft-teal{background:color-mix(in srgb,var(--teal) 18%,var(--card));color:#84e4dc}
+.dark .progress,.dark .food-progress{background:#26364c}
+.dark .area-node>.node-row,.dark .tree summary{background:#182d49;color:var(--text)}
+.dark .section-node{border-left-color:#344a68}
+.dark .line{background:linear-gradient(var(--card),color-mix(in srgb,var(--card) 88%,var(--bg)))}
+.dark .close,.dark .modal-floating-close{background:#22344d;color:#eaf2ff}
+.dark input,.dark select,.dark textarea{border-color:var(--line);background:var(--card);color:var(--text)}
+.dark .notice,.dark .inline-warning{background:color-mix(in srgb,var(--orange) 12%,var(--card));border-color:color-mix(in srgb,var(--orange) 34%,var(--line));color:var(--text)}
+.dark .google-status.connected{background:color-mix(in srgb,var(--green) 18%,var(--card));color:#83e4b6}
+.dark .cal-grid>button:not(.spent),.dark .cal-grid>i{background:var(--card)}
+.dark .cal-grid>button:not(.spent):hover{background:#1a2c45}
+
+.modal{z-index:100!important}
+#submodal>.modal{z-index:110!important}
+.modalbox{position:relative}
+.modal-floating-close{position:sticky;top:0;z-index:60;float:right;display:grid;place-items:center;margin-left:auto;margin-bottom:-38px;box-shadow:0 3px 12px rgba(0,0,0,.12)}
+.modalbox:has(>.modal-floating-close)>h2{padding-right:48px}
+
+@media(max-width:900px){
+  .bar-scroll .bars{width:max(100%,calc(var(--bar-count) * 54px))}
+  .bar-scroll .bar-col{flex-basis:46px;min-width:46px}
+  .modal{place-items:start center!important;overflow:hidden!important;padding:max(12px,env(safe-area-inset-top)) 10px max(12px,env(safe-area-inset-bottom))!important}
+  .modalbox,.food-meal-box,.category-modal,.confirm-box{width:min(680px,100%)!important;max-width:100%!important;max-height:calc(100dvh - max(24px,env(safe-area-inset-top)) - max(24px,env(safe-area-inset-bottom)))!important;overflow-y:auto!important;overscroll-behavior:contain;margin:0 auto!important;border-radius:22px!important;padding:20px 16px calc(22px + env(safe-area-inset-bottom))!important}
+  .modal-title{position:sticky;top:0;z-index:55;background:var(--card);padding:2px 0 12px;border-bottom:1px solid var(--line)}
+  .modal-title .close,.modal-floating-close{position:sticky!important;top:0!important;flex:0 0 42px;width:42px;height:42px}
+  .modal-actions{position:static!important;margin:20px 0 0!important;padding:14px 0 0!important;background:var(--card)!important;border-top:1px solid var(--line)!important}
+}
+

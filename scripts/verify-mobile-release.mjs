@@ -6,6 +6,7 @@ const app = read('www/app.js');
 const index = read('www/index.html');
 const css = read('www/pc-v6.css');
 const mobileCss = read('www/mobile-app.css');
+const releaseCss = read('www/release-v171.css');
 const gradle = read('android/app/build.gradle');
 const workflow = read('.github/workflows/android-build.yml');
 const googlePlugin = read('android/app/src/main/java/com/financeone/mobile/FinanceOneGooglePlugin.java');
@@ -61,6 +62,18 @@ if (/if\(id\)[^;]*rememberTransactionDate/.test(txModal)) {
 }
 if (!mobileCss.includes('.modal-actions{position:static!important;bottom:auto!important')) {
   throw new Error('모바일 거래창 저장·취소 버튼이 입력란 뒤에 고정되지 않았습니다.');
+}
+if (!app.includes('calendarHeatStyle') || !releaseCss.includes('--heat-color') || !releaseCss.includes('linear-gradient(90deg,#35b96f')) {
+  throw new Error('소비 캘린더의 녹색→빨강 지출 강도 표시가 누락되었습니다.');
+}
+if (!app.includes('class="bar-scroll"') || !releaseCss.includes('calc(var(--bar-count) * 54px)')) {
+  throw new Error('좁은 화면용 차트 가로 스크롤 처리가 누락되었습니다.');
+}
+if (!releaseCss.includes('.dark .budget-section-row') || !releaseCss.includes('.dark .tabs button.active')) {
+  throw new Error('다크 모드 표·탭 대비 보정이 누락되었습니다.');
+}
+if (!app.includes('ensureModalCloseButtons') || !app.includes("addEventListener('backbutton'") || !releaseCss.includes('max-height:calc(100dvh')) {
+  throw new Error('모바일 모달 닫기·안전 영역 처리가 누락되었습니다.');
 }
 
 if (app.includes("type:'finish'") || app.includes('type:"finish"')) {
