@@ -1,8 +1,9 @@
 {
   "name": "financeone-mobile",
-  "version": "1.6.9",
+  "version": "1.7.0",
   "private": true,
   "scripts": {
+    "verify": "node scripts/verify-mobile-release.mjs && node scripts/verify-food-existing-stock.mjs",
     "sync": "npx cap sync android",
     "copy": "npx cap copy android",
     "apk:windows": "build-apk.bat",

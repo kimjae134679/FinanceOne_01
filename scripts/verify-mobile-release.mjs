@@ -9,6 +9,7 @@ const mobileCss = read('www/mobile-app.css');
 const gradle = read('android/app/build.gradle');
 const workflow = read('.github/workflows/android-build.yml');
 const googlePlugin = read('android/app/src/main/java/com/financeone/mobile/FinanceOneGooglePlugin.java');
+const existingStockSpec = read('FOOD_EXISTING_STOCK_SPEC_v1_KO.md');
 
 const required = [
   ['여러 식재료 선택', 'data-food-meal-pick'],
@@ -73,6 +74,18 @@ if (!app.includes("S.foodPurchases.filter(p=>!foodIsFinished(p)&&foodMatches(p))
 }
 if (!app.includes("S.foodPurchases.push({id:uid()") || !app.includes("purchaseId,type:'portion'")) {
   throw new Error('같은 식품 재구매를 독립 구매 ID로 기록하지 않습니다.');
+}
+if (!app.includes('id="addExistingFood"') || !app.includes("source:'existing',priceKnown")) {
+  throw new Error('구매일 없는 기존 재고 등록 기능이 누락되었습니다.');
+}
+if (!app.includes("source==='existing'?'':") || !app.includes("!foodHasPrice(p)?'금액 미기록'")) {
+  throw new Error('기존 재고의 구매일·가격 미기록 처리가 누락되었습니다.');
+}
+if (!app.includes('foodMatches(p)&&foodHasPrice(p)') || !app.includes('가격이 있는 기록 기준')) {
+  throw new Error('금액 미기록 재고가 식비 통계 또는 가격 비교에서 제외되지 않습니다.');
+}
+if (!existingStockSpec.includes('같은 상품을 다시 등록하거나 새로 구매해도 각각 독립 재고로 저장')) {
+  throw new Error('기존 재고 기능 기획서가 누락되었거나 구현 기준과 다릅니다.');
 }
 
 console.log(`PASS: FinanceOne Mobile v${pkg.version} Google 동기화·거래 날짜·모달·식비·버전·캐시 반영 확인`);

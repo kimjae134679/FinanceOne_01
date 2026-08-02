@@ -29,7 +29,7 @@ jobs:
           cache: gradle
 
       - name: PC·모바일 공통 식비 기능 반영 확인
-        run: node scripts/verify-mobile-release.mjs
+        run: npm run verify
 
       - name: APK 빌드
         run: |
@@ -58,7 +58,7 @@ jobs:
       - name: 설치 검증 APK 저장
         uses: actions/upload-artifact@v4
         with:
-          name: FinanceOne-v1.6.9-install-verified
+          name: FinanceOne-v1.7.0-install-verified
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 30
