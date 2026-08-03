@@ -6,7 +6,7 @@ const app = read('www/app.js');
 const index = read('www/index.html');
 const css = read('www/pc-v6.css');
 const mobileCss = read('www/mobile-app.css');
-const releaseCss = read('www/release-v171.css');
+const releaseCss = read('www/release-v171.css') + read('www/release-v172.css');
 const gradle = read('android/app/build.gradle');
 const workflow = read('.github/workflows/android-build.yml');
 const googlePlugin = read('android/app/src/main/java/com/financeone/mobile/FinanceOneGooglePlugin.java');
@@ -94,7 +94,7 @@ if (!app.includes('id="addExistingFood"') || !app.includes("source:'existing',pr
 if (!app.includes("source==='existing'?'':") || !app.includes("!foodHasPrice(p)?'금액 미기록'")) {
   throw new Error('기존 재고의 구매일·가격 미기록 처리가 누락되었습니다.');
 }
-if (!app.includes('foodMatches(p)&&foodHasPrice(p)') || !app.includes('가격이 있는 기록 기준')) {
+if (!app.includes('S.foodPurchases.filter(foodHasPrice)') || !app.includes('가격이 있는 기록 기준')) {
   throw new Error('금액 미기록 재고가 식비 통계 또는 가격 비교에서 제외되지 않습니다.');
 }
 if (!existingStockSpec.includes('같은 상품을 다시 등록하거나 새로 구매해도 각각 독립 재고로 저장')) {

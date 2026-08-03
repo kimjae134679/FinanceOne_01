@@ -1,0 +1,76 @@
+/* v1.7.2 / PC v1.10.1: rolling period, food ledger QA and compact comparison */
+.period-control{display:grid;grid-template-columns:auto auto;align-items:center;gap:9px}
+.period-switch{display:grid;grid-template-columns:1fr 1fr;padding:3px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.period-switch button{min-height:36px;padding:0 12px;border:0;border-radius:9px;background:transparent;color:var(--muted);font-weight:900;white-space:nowrap}
+.period-switch button.active{background:var(--blue);color:#fff;box-shadow:0 2px 8px color-mix(in srgb,var(--blue) 24%,transparent)}
+.period-nav{display:grid;grid-template-columns:38px minmax(110px,auto) 38px;align-items:center;gap:6px}
+.period-nav .pill{width:38px;height:38px;padding:0}
+.period-nav.rolling .pill{visibility:hidden}
+.period-nav.rolling .month-label{min-width:116px}
+.cal-grid button small{display:none;color:var(--muted);font-size:9px;font-weight:800}
+
+.food-history-list,.food-stats-list,.food-compare-list{display:grid;margin-top:12px;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.food-history-list article{display:grid;grid-template-columns:110px minmax(240px,1fr) 150px auto;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.food-history-list article:last-child,.food-stats-list article:last-child,.food-compare-list article:last-child{border-bottom:0}
+.food-history-list article>div:nth-child(2),.food-stats-list article>div,.food-compare-list article>div{display:grid;gap:4px;min-width:0}
+.food-history-list small,.food-stats-list small,.food-compare-list small{color:var(--muted)}
+.food-history-list strong,.food-stats-list strong,.food-compare-list strong{color:var(--red);white-space:nowrap}
+.food-row-actions{display:flex!important;justify-content:flex-end;gap:6px}
+.food-row-actions button{min-height:34px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text);font-weight:800}
+.food-list-head{display:grid;grid-template-columns:minmax(180px,1.5fr) minmax(100px,.8fr) minmax(130px,.8fr) minmax(150px,1fr);gap:14px;padding:10px 16px;background:var(--bg);color:var(--muted);font-size:12px;font-weight:900}
+.food-stats-list article,.food-compare-list article{display:grid;grid-template-columns:minmax(180px,1.5fr) minmax(100px,.8fr) minmax(130px,.8fr) minmax(150px,1fr);align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line)}
+.food-stats-list article>small:last-child{text-align:right}
+.food-compare-list article.best-price{background:color-mix(in srgb,var(--green) 7%,var(--card))}
+.food-compare-list em{display:inline-flex;margin-left:5px;padding:2px 6px;border-radius:99px;background:color-mix(in srgb,var(--green) 16%,var(--card));color:var(--green);font-size:10px;font-style:normal}
+.food-compare-list strong{color:var(--blue);text-align:right}
+.dark .food-list-head{background:#18283e}
+.dark .food-history-list,.dark .food-stats-list,.dark .food-compare-list{border-color:var(--line)}
+.dark .food-row-actions button{background:#18283e;color:var(--text)}
+.dark .period-switch{background:var(--card)}
+.dark .period-switch button.active{background:var(--blue);color:#fff}
+
+@media(max-width:900px){
+  .top .controls{display:flex!important;flex-direction:column!important;align-items:stretch!important;width:100%;gap:9px!important}
+  .period-control{width:100%;grid-template-columns:1fr}
+  .period-switch{width:100%}
+  .period-switch button{min-height:42px;padding:0 8px;font-size:13px}
+  .period-nav{grid-template-columns:42px minmax(0,1fr) 42px}
+  .period-nav .pill{width:42px;height:42px}
+  .period-nav.rolling{grid-template-columns:1fr}
+  .period-nav.rolling .pill{display:none}
+  .period-nav .month-label{display:grid;place-items:center;height:42px!important;min-height:42px!important}
+  .top .controls>.btn,.top .controls>.pill{width:100%;min-height:46px}
+  .cal-grid button small{display:block}
+  .food-summary-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .food-summary-grid .metric{display:block!important;min-height:118px!important;padding:14px!important}
+  .food-summary-grid .metric .ico{display:grid!important;width:36px!important;height:36px!important;margin:0 0 9px!important}
+  .food-summary-grid .metric h4{font-size:12px!important;white-space:normal}
+  .food-summary-grid .metric strong{font-size:19px!important}
+  .food-summary-grid .metric small{white-space:normal;line-height:1.35}
+  .food-history-list,.food-stats-list,.food-compare-list{border:0;border-radius:0;gap:10px;overflow:visible}
+  .food-list-head{display:none}
+  .food-history-list article,.food-stats-list article,.food-compare-list article{
+    display:grid!important;width:100%;min-width:0;grid-template-columns:minmax(0,1fr) auto;
+    gap:8px 12px;padding:14px!important;border:1px solid var(--line)!important;border-radius:15px;
+    background:var(--card);box-shadow:0 4px 14px rgba(20,40,80,.04)
+  }
+  .food-history-list article>time{grid-column:1;font-size:12px;color:var(--muted)}
+  .food-history-list article>div:nth-child(2){grid-column:1/-1;grid-row:2}
+  .food-history-list article>strong{grid-column:2;grid-row:1;text-align:right}
+  .food-history-list .food-row-actions{grid-column:1/-1;grid-row:3;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));padding-top:8px;border-top:1px solid var(--line)}
+  .food-history-list .food-row-actions button{padding:0 6px}
+  .food-stats-list article>div,.food-compare-list article>div{grid-column:1;grid-row:1}
+  .food-stats-list article>span{grid-column:2;grid-row:1;text-align:right}
+  .food-stats-list article>strong{grid-column:1;grid-row:2}
+  .food-stats-list article>small:last-child{grid-column:2;grid-row:2;text-align:right;white-space:normal}
+  .food-compare-list article>span{grid-column:1;grid-row:2;color:var(--muted);font-size:12px}
+  .food-compare-list article>small{grid-column:1;grid-row:3}
+  .food-compare-list article>strong{grid-column:2;grid-row:1/4;align-self:center;max-width:120px;white-space:normal;text-align:right}
+}
+@media(max-width:390px){
+  .food-summary-grid{grid-template-columns:1fr!important}
+  .food-summary-grid .metric{display:grid!important;grid-template-columns:42px minmax(0,1fr)!important;min-height:92px!important}
+  .food-summary-grid .metric .ico{grid-row:1/4!important;margin:0 10px 0 0!important}
+  .food-history-list article,.food-stats-list article,.food-compare-list article{padding:12px!important}
+}
+
