@@ -43,7 +43,7 @@ assert.equal(context.qa.finishResult.finishedDate,'2026-08-05');
 assert.equal(context.qa.finishResult.events.length,1,'먹은 기록 없는 다 먹음이 한 건으로 남지 않았습니다.');
 assert.deepEqual({...context.qa.finishResult.events[0]},{date:'2026-08-05',amount:3,unit:'개',cost:6000,autoFinished:true},'완료일에 남은 전량과 총액이 기록되지 않았습니다.');
 
-for(const token of ['data-period-mode="rolling"','data-period-mode="month"','dateInPeriod(x.date)','food-history-list','food-stats-list','food-compare-list','autoFinished:true']){
+for(const token of ['data-period-mode="rolling"','data-period-mode="month"','dateInPeriod(x.date)','food-history-list','food-stats-list','food-compare-list','autoFinished:true','data-food-meal-amount','CATEGORY_ICON_SUGGESTIONS',"calendarTx().filter(x=>x.type==='지출'&&(!excludeRent||!rentTx(x)))"]){
   assert.ok(app.includes(token),`v1.7.2 필수 구현 누락: ${token}`);
 }
 for(const token of ['.period-switch','.food-history-list','.food-stats-list','.food-compare-list','@media(max-width:900px)']){

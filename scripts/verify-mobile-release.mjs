@@ -79,8 +79,11 @@ if (!app.includes('ensureModalCloseButtons') || !app.includes("addEventListener(
 if (app.includes("type:'finish'") || app.includes('type:"finish"')) {
   throw new Error('다 먹음 상태가 별도 먹은 날짜 기록으로 생성됩니다.');
 }
-if (!app.includes("purchaseIds.forEach(purchaseId=>")) {
+if (!app.includes("entries.forEach(entry=>") || !app.includes('data-food-meal-amount')) {
   throw new Error('한 끼에 여러 식재료를 함께 기록하는 처리가 누락되었습니다.');
+}
+if (!app.includes("calendarTx().filter(x=>x.type==='지출'&&(!excludeRent||!rentTx(x)))")) {
+  throw new Error('소비 캘린더에 월세 제외 설정이 반영되지 않습니다.');
 }
 if (!app.includes("S.foodPurchases.filter(p=>!foodIsFinished(p)&&foodMatches(p))")) {
   throw new Error('다 먹은 구매 건이 재고 목록에서 제외되지 않습니다.');

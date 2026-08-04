@@ -74,3 +74,10 @@
   .food-history-list article,.food-stats-list article,.food-compare-list article{padding:12px!important}
 }
 
+.food-meal-option>.food-meal-amount{display:flex;grid-template-columns:none;align-items:center;justify-content:flex-end;gap:7px;min-width:112px}
+.food-meal-option>.food-meal-amount input{width:72px!important;height:38px!important;padding:7px 9px;text-align:right;border:1px solid var(--line);border-radius:9px;background:var(--card);color:var(--ink);font-weight:900}
+.food-meal-option>.food-meal-amount em{min-width:22px;text-align:left}
+@media(max-width:620px){
+  .food-meal-option{grid-template-columns:auto minmax(0,1fr)!important}
+  .food-meal-option>.food-meal-amount{grid-column:2;justify-content:flex-start}
+}
