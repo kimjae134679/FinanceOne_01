@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-and-verify-apk:
     runs-on: ubuntu-latest
@@ -54,6 +57,17 @@ jobs:
             adb install -r android/app/build/outputs/apk/debug/app-debug.apk
             adb shell pm path com.financeone.mobile
             adb shell dumpsys package com.financeone.mobile | grep -E "versionCode|versionName|firstInstallTime"
+
+      - name: 설치 검증 APK 최신본 저장
+        run: |
+          mkdir -p releases
+          cp android/app/build/outputs/apk/debug/app-debug.apk releases/FinanceOne-Mobile-latest.apk
+          printf '1.7.4\n' > releases/VERSION.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add releases/FinanceOne-Mobile-latest.apk releases/VERSION.txt
+          git diff --cached --quiet || git commit -m "Update verified Android APK v1.7.4"
+          git push origin HEAD:main
 
       - name: 설치 검증 APK 저장
         uses: actions/upload-artifact@v4
