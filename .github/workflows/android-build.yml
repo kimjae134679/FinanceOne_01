@@ -63,9 +63,12 @@ jobs:
           mkdir -p releases
           cp android/app/build/outputs/apk/debug/app-debug.apk releases/FinanceOne-Mobile-latest.apk
           printf '1.7.4\n' > releases/VERSION.txt
+          rm -rf releases/apk-parts
+          mkdir -p releases/apk-parts
+          base64 -w0 releases/FinanceOne-Mobile-latest.apk | split -b 700k -d -a 2 - releases/apk-parts/FinanceOne-Mobile-v1.7.4.apk.b64.
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add releases/FinanceOne-Mobile-latest.apk releases/VERSION.txt
+          git add releases/FinanceOne-Mobile-latest.apk releases/VERSION.txt releases/apk-parts
           git diff --cached --quiet || git commit -m "Update verified Android APK v1.7.4"
           git push origin HEAD:main
 
